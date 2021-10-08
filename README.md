@@ -1,5 +1,7 @@
 # dCache Nearline Storage Driver for CTA
 
+<img src=".assets/cta+dcache.png" height="165" width="200">
+
 This is nearline storage plugin for dCache.
 
 To compile the plugin, run:
