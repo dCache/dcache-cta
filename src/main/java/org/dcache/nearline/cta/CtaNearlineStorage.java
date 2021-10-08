@@ -8,13 +8,12 @@ import org.dcache.pool.nearline.spi.NearlineStorage;
 import org.dcache.pool.nearline.spi.RemoveRequest;
 import org.dcache.pool.nearline.spi.StageRequest;
 
-public class CtaNearlineStorage implements NearlineStorage
-{
+public class CtaNearlineStorage implements NearlineStorage {
+
     protected final String type;
     protected final String name;
 
-    public CtaNearlineStorage(String type, String name)
-    {
+    public CtaNearlineStorage(String type, String name) {
         this.type = type;
         this.name = name;
     }
@@ -25,8 +24,7 @@ public class CtaNearlineStorage implements NearlineStorage
      * @param requests
      */
     @Override
-    public void flush(Iterable<FlushRequest> requests)
-    {
+    public void flush(Iterable<FlushRequest> requests) {
         throw new UnsupportedOperationException("Not implemented");
     }
 
@@ -36,8 +34,7 @@ public class CtaNearlineStorage implements NearlineStorage
      * @param requests
      */
     @Override
-    public void stage(Iterable<StageRequest> requests)
-    {
+    public void stage(Iterable<StageRequest> requests) {
         throw new UnsupportedOperationException("Not implemented");
     }
 
@@ -47,27 +44,24 @@ public class CtaNearlineStorage implements NearlineStorage
      * @param requests
      */
     @Override
-    public void remove(Iterable<RemoveRequest> requests)
-    {
+    public void remove(Iterable<RemoveRequest> requests) {
         throw new UnsupportedOperationException("Not implemented");
     }
 
     /**
      * Cancel any flush, stage or remove request with the given id.
-     * <p>
-     * The failed method of any cancelled request should be called with a
-     * CancellationException. If the request completes before it can be
-     * cancelled, then the cancellation should be ignored and the completed
-     * or failed method should be called as appropriate.
-     * <p>
-     * A call to cancel must be non-blocking.
+     *
+     * <p>The failed method of any cancelled request should be called with a CancellationException.
+     * If
+     * the request completes before it can be cancelled, then the cancellation should be ignored and
+     * the completed or failed method should be called as appropriate.
+     *
+     * <p>A call to cancel must be non-blocking.
      *
      * @param uuid id of the request to cancel
      */
     @Override
-    public void cancel(UUID uuid)
-    {
-
+    public void cancel(UUID uuid) {
     }
 
     /**
@@ -77,21 +71,15 @@ public class CtaNearlineStorage implements NearlineStorage
      * @throws IllegalArgumentException if the configuration is invalid
      */
     @Override
-    public void configure(Map<String, String> properties) throws IllegalArgumentException
-    {
-
+    public void configure(Map<String, String> properties) throws IllegalArgumentException {
     }
 
     /**
-     * Cancels all requests and initiates a shutdown of the nearline storage
-     * interface.
-     * <p>
-     * This method does not wait for actively executing requests to
-     * terminate.
+     * Cancels all requests and initiates a shutdown of the nearline storage interface.
+     *
+     * <p>This method does not wait for actively executing requests to terminate.
      */
     @Override
-    public void shutdown()
-    {
-
+    public void shutdown() {
     }
 }
