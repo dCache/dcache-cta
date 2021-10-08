@@ -1,0 +1,112 @@
+// @project        The CERN Tape Archive (CTA)
+// @brief          CTA Frontend XRootD API definition
+// @copyright      Copyright 2017 CERN
+// @license        This program is free software: you can redistribute it and/or modify
+//                 it under the terms of the GNU General Public License as published by
+//                 the Free Software Foundation, either version 3 of the License, or
+//                 (at your option) any later version.
+//
+//                 This program is distributed in the hope that it will be useful,
+//                 but WITHOUT ANY WARRANTY; without even the implied warranty of
+//                 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//                 GNU General Public License for more details.
+//
+//                 You should have received a copy of the GNU General Public License
+//                 along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+syntax = "proto3";
+package cta.xrd;
+
+import "cta_admin.proto";
+import "cta_eos.proto";
+
+//
+// Requests sent to the CTA Frontend
+//
+
+message Request {
+  oneof request {
+    cta.eos.Notification notification = 1;      //< EOS WFE Notification
+    cta.admin.AdminCmd admincmd       = 2;      //< CTA Admin Command
+  }
+  string client_cta_version = 3;                           //< Client CTA version
+  string client_xrootd_ssi_protobuf_interface_version = 4; // Client xrootd-ssi-protobuf-interface version
+}
+
+
+
+//
+// Metadata responses sent by the CTA Frontend
+//
+
+message Response {
+  enum ResponseType {
+    RSP_INVALID                       = 0;      //< Response type was not set
+    RSP_SUCCESS                       = 1;      //< Request is valid and was accepted for processing
+    RSP_ERR_PROTOBUF                  = 2;      //< Framework error caused by Google Protocol Buffers layer
+    RSP_ERR_CTA                       = 3;      //< Server error reported by CTA Frontend
+    RSP_ERR_USER                      = 4;      //< User request is invalid
+  }
+  ResponseType type                   = 1;      //< Encode the type of this response
+  map<string, string> xattr           = 2;      //< xattribute map
+  string message_txt                  = 3;      //< Optional response message text
+  cta.admin.HeaderType show_header    = 4;      //< Type of header to display (for stream responses)
+}
+
+
+
+//
+// Stream/Data responses sent by the CTA Frontend
+//
+// Note: enum values for not-yet-implemented stream responses are reserved in advance. This allows us
+//       to implement them on a case-by-case basis without needing to recompile all the code that uses
+//       these protobufs.
+//
+
+message Data {
+  oneof data {
+    cta.admin.AdminLsItem adls_item                      =  1;
+    cta.admin.ArchiveFileLsItem afls_item                =  2;    //< Data for a single archive file
+    cta.admin.ArchiveFileLsSummary afls_summary          =  3;    //< Summary line for archive files
+    cta.admin.ArchiveRouteLsItem arls_item               =  4;    //< Data for a single archive route
+    cta.admin.DriveLsItem drls_item                      =  5;    //< Data for a single drive
+    cta.admin.FailedRequestLsItem frls_item              =  6;    //< Data for a single failed request
+    cta.admin.FailedRequestLsSummary frls_summary        =  7;    //< Summary line for failed requests
+    cta.admin.GroupMountRuleLsItem gmrls_item            =  8;    //< Data for a single group mount rule
+    cta.admin.ListPendingArchivesItem lpa_item           =  9;    //< Data for a single pending archive file
+    cta.admin.ListPendingArchivesSummary lpa_summary     = 10;    //< Summary line for pending archive files
+    cta.admin.ListPendingRetrievesItem lpr_item          = 11;    //< Data for a single pending retreive file
+    cta.admin.ListPendingRetrievesSummary lpr_summary    = 12;    //< Summary line for pending retrieve files
+    cta.admin.LogicalLibraryLsItem llls_item             = 13;    //< Data for a single logical library
+    cta.admin.MountPolicyLsItem mpls_item                = 14;    //< Data for a single mount policy
+    cta.admin.RepackLsItem rels_item                     = 15;    //< Data for a single repack request
+    cta.admin.RequesterMountRuleLsItem rmrls_item        = 16;    //< Data for a single requester mount rule
+    cta.admin.ShowQueuesItem sq_item                     = 17;    //< Data for a single queue summary
+    cta.admin.StorageClassLsItem scls_item               = 18;    //< Data for a single storage class
+    cta.admin.TapeLsItem tals_item                       = 19;    //< Data for a single tape
+    cta.admin.TapePoolLsItem tpls_item                   = 20;    //< Data for a single tapepool
+    cta.admin.DiskSystemLsItem dsls_item                 = 21;    //< Data for a single disksystem
+    cta.admin.TapeFileLsItem tfls_item                   = 22;    //< Data for a single tape file
+    cta.admin.VirtualOrganizationLsItem vols_item        = 23;    //< Data for a single virtual organization
+    cta.admin.VersionItem version_item                   = 24;    //< Data for a single version item
+    cta.admin.MediaTypeLsItem mtls_item                  = 25;    //< Data for a single tape media type
+    cta.admin.SchedulingInfosLsItem sils_item            = 26;    //< Data for a single scheduling info item
+    cta.admin.RecycleTapeFileLsItem rtfls_item           = 27;    //< Data for a single recycle tape file item
+  }
+}
+
+
+
+//
+// Alert Messages
+//
+
+message Alert {
+  enum Audience {
+    LOG                               = 0;    //< Message intended for client log
+    ENDUSER                           = 1;    //< Message intended for end user
+  }
+  Audience audience                   = 1;    //< The intended audience of the message
+  string message_txt                  = 2;    //< Text of the message
+}
+

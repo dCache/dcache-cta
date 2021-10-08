@@ -1,0 +1,618 @@
+// @project        The CERN Tape Archive (CTA)
+// @brief          CTA Admin Command API definition
+// @copyright      Copyright 2019 CERN
+// @license        This program is free software: you can redistribute it and/or modify
+//                 it under the terms of the GNU General Public License as published by
+//                 the Free Software Foundation, either version 3 of the License, or
+//                 (at your option) any later version.
+//
+//                 This program is distributed in the hope that it will be useful,
+//                 but WITHOUT ANY WARRANTY; without even the implied warranty of
+//                 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//                 GNU General Public License for more details.
+//
+//                 You should have received a copy of the GNU General Public License
+//                 along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+syntax  = "proto3";
+package cta.admin;
+
+import "cta_common.proto";
+
+//
+// Command Options
+//
+
+message OptionBoolean {
+  enum Key {
+    DISABLED                           =  0;
+    ENCRYPTED                          =  1;
+    FORCE                              =  2;
+    FULL                               =  3;
+    READ_ONLY                          =  4;
+
+    // hasOption options
+    ALL                                =  6;
+    JUSTARCHIVE                        =  9;
+    JUSTADDCOPIES                      = 10;
+    JUSTMOVE                           = 11;
+    JUSTRETRIEVE                       = 12;
+    SHOW_LOG_ENTRIES                   = 13;
+    SUMMARY                            = 14;
+    LOOKUP_NAMESPACE                   = 15;
+    NO_RECALL                          = 17;
+  }
+
+  Key key                              =  1;
+  bool value                           =  2;
+}
+
+message OptionUInt64 {
+  enum Key {
+    ARCHIVE_FILE_ID                    =  0;
+    ARCHIVE_PRIORITY                   =  1;
+    RETRIEVE_PRIORITY                  =  2;
+    CAPACITY                           =  3;
+    COPY_NUMBER                        =  4;
+    MIN_ARCHIVE_REQUEST_AGE            = 10;
+    MIN_RETRIEVE_REQUEST_AGE           = 11;
+    PARTIAL_TAPES_NUMBER               = 15;
+    REFRESH_INTERVAL                   = 16;
+    TARGETED_FREE_SPACE                = 17;
+    SLEEP_TIME                         = 20;
+    MAX_LPOS                           = 21;
+    MIN_LPOS                           = 22;
+    NUMBER_OF_WRAPS                    = 23;
+    PRIMARY_DENSITY_CODE               = 24;
+    SECONDARY_DENSITY_CODE             = 25;
+    READ_MAX_DRIVES                    = 26;
+    WRITE_MAX_DRIVES                   = 27;
+  }
+
+  Key key                              =  1;
+  uint64 value                         =  2;
+}
+
+message OptionString {
+  enum Key {
+    COMMENT                            =  0;
+    DRIVE                              =  2;
+    ENCRYPTION_KEY_NAME                =  3;
+    INSTANCE                           =  7;
+    LOGICAL_LIBRARY                    =  8;
+    MOUNT_POLICY                       =  9;
+    STORAGE_CLASS                      = 12;
+    TAPE_POOL                          = 13;
+    USERNAME                           = 14;
+    VID                                = 15;
+    VO                                 = 16;
+    BUFFERURL                          = 17;
+    MEDIA_TYPE                         = 18;
+    VENDOR                             = 19;
+    SUPPLY                             = 20;
+    DISK_SYSTEM                        = 21;
+    FILE_REGEXP                        = 22;
+    FREE_SPACE_QUERY_URL               = 23;
+    REASON                             = 24;
+    CARTRIDGE                          = 25;
+    FXID                               = 26;
+    OBJECTID                           = 27;
+    STATE                              = 28;
+  }
+
+  Key key                              =  1;
+  string value                         =  2;
+}
+
+message OptionStrList {
+  enum Key {
+    VID                                =  0;
+    FILE_ID                            =  1;
+  }
+
+  Key key                              =  1;
+  repeated string item                 =  2;
+}
+
+//
+// CTA Admin Command API
+//
+
+message AdminCmd {
+  enum Cmd {
+    CMD_NONE                           =  0;
+    CMD_ADMIN                          =  1;
+    CMD_ARCHIVEROUTE                   =  3;
+    CMD_DRIVE                          =  4;
+    CMD_FAILEDREQUEST                  =  5;
+    CMD_GROUPMOUNTRULE                 =  6;
+    CMD_LOGICALLIBRARY                 =  9;
+    CMD_MOUNTPOLICY                    = 10;
+    CMD_REPACK                         = 11;
+    CMD_REQUESTERMOUNTRULE             = 12;
+    CMD_SHOWQUEUES                     = 13;
+    CMD_STORAGECLASS                   = 14;
+    CMD_TAPE                           = 15;
+    CMD_TAPEPOOL                       = 16;
+    CMD_DISKSYSTEM                     = 17;
+    CMD_TAPEFILE                       = 18;
+    CMD_VIRTUALORGANIZATION            = 19;
+    CMD_VERSION                        = 20;
+    CMD_MEDIATYPE                      = 21;
+    CMD_SCHEDULINGINFOS                = 22;
+    CMD_RECYCLETAPEFILE                = 23;
+  }
+  enum SubCmd {
+    SUBCMD_NONE                        =  0;
+    SUBCMD_ADD                         =  1;
+    SUBCMD_CH                          =  2;
+    SUBCMD_ERR                         =  3;
+    SUBCMD_LABEL                       =  4;
+    SUBCMD_LS                          =  5;
+    SUBCMD_RECLAIM                     =  6;
+    SUBCMD_RM                          =  7;
+    SUBCMD_UP                          =  8;
+    SUBCMD_DOWN                        =  9;
+    SUBCMD_RETRY                       = 10;
+    SUBCMD_SHOW                        = 11;
+  }
+
+  Cmd cmd                                = 1;    //< The primary command
+  SubCmd subcmd                          = 2;    //< The secondary command
+  repeated OptionBoolean option_bool     = 3;    //< List of boolean options
+  repeated OptionUInt64  option_uint64   = 4;    //< List of integer options
+  repeated OptionString  option_str      = 5;    //< List of string options
+  repeated OptionStrList option_str_list = 6;    //< List of string list options
+}
+
+//
+// Stream response header type
+//
+
+enum HeaderType {
+  NONE                         =  0;    //< No header (default)
+  ADMIN_LS                     =  1;    //< cta-admin admin ls
+  ARCHIVEFILE_LS               =  2;    //< cta-admin archivefile ls
+  ARCHIVEFILE_LS_SUMMARY       =  3;    //< cta-admin archivefile ls -S
+  ARCHIVEROUTE_LS              =  4;    //< cta-admin archiveroute ls
+  DRIVE_LS                     =  5;    //< cta-admin drive ls
+  FAILEDREQUEST_LS             =  6;    //< cta-admin failedrequest ls
+  FAILEDREQUEST_LS_SUMMARY     =  7;    //< cta-admin failedrequest ls -S
+  GROUPMOUNTRULE_LS            =  8;    //< cta-admin groupmountrule ls
+  LISTPENDINGARCHIVES          =  9;    //< cta-admin listpendingarchives -x
+  LISTPENDINGARCHIVES_SUMMARY  = 10;    //< cta-admin listpendingarchives
+  LISTPENDINGRETRIEVES         = 11;    //< cta-admin listpendingretrieves -x
+  LISTPENDINGRETRIEVES_SUMMARY = 12;    //< cta-admin listpendingretrieves
+  LOGICALLIBRARY_LS            = 13;    //< cta-admin logicallibrary ls
+  MOUNTPOLICY_LS               = 14;    //< cta-admin mountpolicy ls
+  REPACK_LS                    = 15;    //< cta-admin repack ls
+  REQUESTERMOUNTRULE_LS        = 16;    //< cta-admin requestermountrule ls
+  SHOWQUEUES                   = 17;    //< cta-admin showqueues ls
+  STORAGECLASS_LS              = 18;    //< cta-admin storageclass ls
+  TAPE_LS                      = 19;    //< cta-admin ta ls
+  TAPEPOOL_LS                  = 20;    //< cta-admin tapepool ls
+  DISKSYSTEM_LS                = 21;    //< cta-admin disksystem ls
+  TAPEFILE_LS                  = 22;    //< cta-admin tapefile ls
+  VIRTUALORGANIZATION_LS       = 23;    //< cta-admin virtualorganization ls
+  VERSION_CMD                  = 24;    //< cta-admin version (This can't be called VERSION as it clashes with an EOS macro)
+  MEDIATYPE_LS                 = 25;    //< cta-admin mediatype ls
+  SCHEDULINGINFOS_LS           = 26;    //< cta-admin schedulinginfo ls
+  RECYLETAPEFILE_LS            = 27;    //< cta-admin recycletf ls
+}
+
+//
+// Stream response types
+//
+
+enum MountType {
+  UNKNOWN_MOUNT_TYPE                        = 0;
+  NO_MOUNT                                  = 1;
+  ARCHIVE_FOR_USER                          = 2;
+  ARCHIVE_FOR_REPACK                        = 3;
+  ARCHIVE_ALL_TYPES                         = 4;
+  RETRIEVE                                  = 5;
+  LABEL                                     = 6;
+}
+
+enum RequestType {
+  TOTAL                                     = 0;    //< Used for summary totals
+  ARCHIVE_REQUEST                           = 1;    //< Archive request
+  RETRIEVE_REQUEST                          = 2;    //< Retrieve request
+}
+
+message AdminLsItem {
+  string user                               = 1;
+  cta.common.EntryLog creation_log          = 2;
+  cta.common.EntryLog last_modification_log = 3;
+  string comment                            = 4;
+}
+
+message ArchiveFileLsItem {
+  cta.common.ArchiveFile af                 = 1;
+  cta.common.TapeFile tf                    = 2;
+  uint64 copy_nb                            = 3;
+}
+
+message ArchiveFileLsSummary {
+  uint64 total_files                        = 1;
+  uint64 total_size                         = 2;
+}
+
+message ArchiveRouteLsItem {
+  string storage_class                      = 1;
+  uint32 copy_number                        = 2;
+  string tapepool                           = 3;
+  cta.common.EntryLog creation_log          = 4;
+  cta.common.EntryLog last_modification_log = 5;
+  string comment                            = 6;
+}
+
+message DriveConfigItem {
+  string category                  = 1;
+  string key                       = 2;
+  string value                     = 3;
+  string source                    = 4;
+}
+
+message DriveLsItem {
+  enum DriveStatus {
+    UNKNOWN_DRIVE_STATUS                    =  0;
+    DOWN                                    =  1;
+    UP                                      =  2;
+    PROBING                                 =  3;
+    STARTING                                =  4;
+    MOUNTING                                =  5;
+    TRANSFERRING                            =  6;
+    UNLOADING                               =  7;
+    UNMOUNTING                              =  8;
+    DRAINING_TO_DISK                        =  9;
+    CLEANING_UP                             = 10;
+    SHUTDOWN                                = 11;
+  }
+
+  string logical_library                    =  1;
+  string drive_name                         =  2;
+  string host                               =  3;
+  DriveStatus desired_drive_state           =  4;
+  MountType mount_type                      =  5;
+  DriveStatus drive_status                  =  6;
+  uint64 drive_status_since                 =  7;
+  string vid                                =  8;
+  string tapepool                           =  9;
+  uint64 files_transferred_in_session       = 10;
+  uint64 bytes_transferred_in_session       = 11;
+  uint64 latest_bandwidth                   = 12;
+  uint64 session_id                         = 13;
+  uint64 time_since_last_update             = 14;
+  uint64 current_priority                   = 15;
+  string current_activity                   = 16;
+  string cta_version                        = 17;
+  string dev_file_name                      = 18;
+  string raw_library_slot                   = 19;
+  repeated DriveConfigItem drive_config     = 20;
+  string comment                            = 21;
+  string reason                             = 22;
+  string vo                                 = 23;
+}
+
+message FailedRequestLsItem {
+  string object_id                          = 1;    //< Address of the request in the objectstore
+  RequestType request_type                  = 2;
+  cta.common.RequesterId requester          = 3;
+  cta.common.ArchiveFile af                 = 4;
+  cta.common.TapeFile tf                    = 5;
+  string tapepool                           = 6;    //< For archive requests only
+  uint64 copy_nb                            = 7;
+  uint32 totalretries                       = 8;
+  repeated string failurelogs               = 9;
+  uint32 totalreportretries                 = 10;
+  repeated string reportfailurelogs         = 11;
+}
+
+message FailedRequestLsSummary {
+  RequestType request_type                  = 1;
+  uint64 total_files                        = 2;
+  uint64 total_size                         = 3;
+}
+
+message GroupMountRuleLsItem {
+  string disk_instance                      = 1;
+  string group_mount_rule                   = 2;
+  string mount_policy                       = 3;
+  cta.common.EntryLog creation_log          = 4;
+  cta.common.EntryLog last_modification_log = 5;
+  string comment                            = 6;
+}
+
+message ListPendingArchivesItem {
+  cta.common.ArchiveFile af                 = 1;
+  cta.common.TapeFile tf                    = 2;
+  uint64 copy_nb                            = 3;
+  string tapepool                           = 4;
+}
+
+message ListPendingArchivesSummary {
+  string tapepool                           = 1;
+  uint64 total_files                        = 2;
+  uint64 total_size                         = 3;
+}
+
+message ListPendingRetrievesItem {
+  cta.common.ArchiveFile af                 = 1;
+  cta.common.TapeFile tf                    = 2;
+  uint64 copy_nb                            = 3;
+}
+
+message ListPendingRetrievesSummary {
+  string vid                                = 1;
+  uint64 total_files                        = 2;
+  uint64 total_size                         = 3;
+}
+
+message LogicalLibraryLsItem {
+  string name                               = 1;
+  bool is_disabled                          = 2;
+  cta.common.EntryLog creation_log          = 3;
+  cta.common.EntryLog last_modification_log = 4;
+  string comment                            = 5;
+}
+
+message MediaTypeLsItem {
+  string name                               =  1;
+  string cartridge                          =  2;
+  uint64 capacity                           =  3;
+  uint64 primary_density_code               =  4;
+  uint64 secondary_density_code             =  5;
+  uint64 number_of_wraps                    =  6;
+  uint64 min_lpos                           =  7;
+  uint64 max_lpos                           =  8;
+  string comment                            =  9;
+  cta.common.EntryLog creation_log          = 10;
+  cta.common.EntryLog last_modification_log = 11;
+}
+
+message MountPolicyLsItem {
+  string name                               = 1;
+  uint64 archive_priority                   = 2;
+  uint64 archive_min_request_age            = 3;
+  uint64 retrieve_priority                  = 4;
+  uint64 retrieve_min_request_age           = 5;
+  cta.common.EntryLog creation_log          = 7;
+  cta.common.EntryLog last_modification_log = 8;
+  string comment                            = 9;
+}
+
+message RepackDestinationInfos{
+  string vid                                = 1;
+  uint64 files                              = 2;
+  uint64 bytes                              = 3;
+}
+
+message RepackLsItem {
+  string vid                                        =  1;
+  string repack_buffer_url                          =  2;
+  uint64 user_provided_files                        =  3;
+  uint64 total_files_to_retrieve                    =  4;
+  uint64 total_bytes_to_retrieve                    =  5;
+  uint64 total_files_to_archive                     =  6;
+  uint64 total_bytes_to_archive                     =  7;
+  uint64 retrieved_files                            =  8;
+  uint64 archived_files                             =  9;
+  uint64 failed_to_retrieve_files                   = 10;
+  uint64 failed_to_retrieve_bytes                   = 11;
+  uint64 failed_to_archive_files                    = 12;
+  uint64 failed_to_archive_bytes                    = 13;
+  uint64 last_expanded_fseq                         = 14;
+  string status                                     = 15;
+  repeated RepackDestinationInfos destination_infos = 16;
+  cta.common.EntryLog creation_log                  = 17;
+  uint64 repack_finished_time                       = 18;
+  uint64 retrieved_bytes                            = 19;
+  uint64 archived_bytes                             = 20;
+  uint64 repack_time                                = 21;
+  uint64 files_left_to_retrieve                     = 22;
+  uint64 files_left_to_archive                      = 23;
+  uint64 total_failed_files                         = 24;
+}
+
+message RequesterMountRuleLsItem {
+  string disk_instance                      = 1;
+  string requester_mount_rule               = 2;
+  string mount_policy                       = 3;
+  cta.common.EntryLog creation_log          = 4;
+  cta.common.EntryLog last_modification_log = 5;
+  string comment                            = 6;
+}
+
+message ShowQueuesItem {
+  MountType mount_type                      =  1;
+  string tapepool                           =  2;
+  string logical_library                    =  3;
+  string vid                                =  4;
+  uint64 queued_files                       =  5;
+  uint64 queued_bytes                       =  6;
+  uint64 oldest_age                         =  7;
+  uint64 priority                           =  8;
+  uint64 min_age                            =  9;
+  uint64 cur_mounts                         = 11;
+  uint64 cur_files                          = 12;
+  uint64 cur_bytes                          = 13;
+  uint64 bytes_per_second                   = 14;
+  uint64 tapes_capacity                     = 16;
+  uint64 tapes_files                        = 17;
+  uint64 tapes_bytes                        = 18;
+  uint64 full_tapes                         = 19;
+  uint64 writable_tapes                     = 23;
+  bool sleeping_for_space                   = 24;
+  uint64 sleep_start_time                   = 25;
+  string disk_system_slept_for              = 26;
+  string vo                                 = 27;
+  uint64 read_max_drives                    = 28;
+  uint64 write_max_drives                   = 29;
+}
+
+message StorageClassLsItem {
+  string name                               = 1;
+  uint64 nb_copies                          = 2;
+  string vo                                 = 3;
+  cta.common.EntryLog creation_log          = 4;
+  cta.common.EntryLog last_modification_log = 5;
+  string comment                            = 6;
+}
+
+message TapeLsItem {
+  string vid                                =  1;
+  string media_type                         =  2;
+  string vendor                             =  3;
+  string logical_library                    =  4;
+  string tapepool                           =  5;
+  string vo                                 =  6;
+  string encryption_key_name                =  7;
+  uint64 capacity                           =  8;
+  uint64 occupancy                          =  9;
+  uint64 last_fseq                          = 10;
+  bool full                                 = 11;
+  bool from_castor                          = 14;
+  uint64 read_mount_count                   = 15;
+  uint64 write_mount_count                  = 16;
+  cta.common.TapeLog label_log              = 17;
+  cta.common.TapeLog last_written_log       = 18;
+  cta.common.TapeLog last_read_log          = 19;
+  cta.common.EntryLog creation_log          = 20;
+  cta.common.EntryLog last_modification_log = 21;
+  string comment                            = 22;
+  uint64 nb_master_files                    = 23;
+  uint64 master_data_in_bytes               = 24;
+  string state                              = 25;
+  string state_reason                       = 26;
+  uint64 state_update_time                  = 27;
+  string state_modified_by                  = 28;
+}
+
+message Checksum {
+  common.ChecksumBlob.Checksum.Type type  = 1;       //< Checksum type
+  string value                            = 2;       //< Checksum value, differs from cta.common.ChecksumBlob.Checksum.value
+                                                     //< in that value is a decoded string not a byte array
+}
+
+message TapeFileLsItem {
+  message ArchiveFile {
+    uint64 archive_id                       = 1;       //< Archive File ID
+    string storage_class                    = 2;       //< Storage Class
+    uint64 creation_time                    = 3;       //< Creation Time
+    repeated Checksum checksum              = 4;       //< Array of checksums
+    uint64 size                             = 5;       //< File size
+  }
+  message DiskFile {
+    string disk_id                          = 1;       //< Disk file ID
+    string disk_instance                    = 2;       //< Disk instance
+    cta.common.OwnerId owner_id             = 3;       //< Owner user ID and group ID of the disk file
+    string path                             = 4;       //< Path of the disk file
+  }
+  message TapeFile {
+    string vid                              = 1;       //< Volume ID of the tape on which the file has been written
+    uint32 copy_nb                          = 2;       //< Copy number
+    uint64 block_id                         = 3;       //< The position of the file on tape: Logical Block ID
+    uint64 f_seq                            = 4;       //< The position of the file on tape: File Sequence number
+  }
+  ArchiveFile af                            = 1;
+  DiskFile df                               = 2;
+  TapeFile tf                               = 3;
+}
+
+message TapePoolLsItem {
+  string name                               =  1;
+  string vo                                 =  2;
+  uint64 num_tapes                          =  3;
+  uint64 num_partial_tapes                  =  4;
+  uint64 num_physical_files                 =  5;
+  uint64 capacity_bytes                     =  6;
+  uint64 data_bytes                         =  7;
+  bool   encrypt                            =  8;
+  string supply                             =  9;
+  cta.common.EntryLog created               = 10;
+  cta.common.EntryLog modified              = 11;
+  string comment                            = 12;
+}
+
+message DiskSystemLsItem {
+  string name                               =  1;
+  string file_regexp                        =  2;
+  string free_space_query_url               =  3;
+  uint64 refresh_interval                   =  4;
+  uint64 targeted_free_space                =  5;
+  uint64 sleep_time                         =  9;
+  cta.common.EntryLog creation_log          =  6;
+  cta.common.EntryLog last_modification_log =  7;
+  string comment                            =  8;
+}
+
+message VirtualOrganizationLsItem {
+  string name                               =  1;
+  cta.common.EntryLog creation_log          =  2;
+  cta.common.EntryLog last_modification_log =  3;
+  string comment                            =  4;
+  uint64 read_max_drives                    =  5;
+  uint64 write_max_drives                   =  6;
+}
+
+message Version{
+  string cta_version = 1;
+  string xrootd_ssi_protobuf_interface_version = 2;
+}
+
+message VersionItem {
+  Version client_version = 1;
+  Version server_version = 2;
+  string catalogue_connection_string = 3;
+  string catalogue_version = 4;
+}
+
+message PotentialMount {
+  string vid = 1;
+  string tapepool = 2;
+  string vo = 3;
+  string media_type = 4;
+  string vendor = 5;
+  MountType mount_type = 6;
+  uint64 tape_capacity_in_bytes = 7;
+  uint64 mount_policy_priority = 8;
+  uint64 mount_policy_min_request_age = 9;
+  uint64 mount_policy_max_drives_allowed = 10;
+  uint64 files_queued = 11;
+  uint64 bytes_queued = 12;
+  uint64 oldest_job_start_time = 13;
+  bool sleeping_mount = 14;
+  uint64 sleep_time = 15;
+  string disk_system_slept_for = 16;
+  uint32 mount_count = 17;
+  string logical_library = 18; 
+}
+
+message SchedulingInfosLsItem {
+  string logical_library = 1;
+  repeated PotentialMount potential_mounts = 2;
+}
+
+message RecycleTapeFileLsItem {
+  string vid = 1;
+  uint64 fseq = 2;
+  uint64 block_id = 3;
+  uint32 copy_nb = 4;
+  uint64 tape_file_creation_time = 5;
+  uint64 archive_file_id = 6;
+  string disk_instance = 7;
+  string disk_file_id = 8;
+  string disk_file_id_when_deleted = 9;
+  uint64 disk_file_uid = 10;
+  uint64 disk_file_gid = 11;
+  uint64 size_in_bytes = 12;
+  repeated Checksum checksum = 13;
+  string storage_class = 14;
+  uint64 archive_file_creation_time = 15;
+  uint64 reconciliation_time = 16;
+  string collocation_hint = 17;
+  string disk_file_path = 18;
+  string reason_log = 19;
+  uint64 recycle_log_time = 20;
+}

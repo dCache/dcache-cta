@@ -1,0 +1,100 @@
+// @project        The CERN Tape Archive (CTA)
+// @brief          Common types used by other protocol buffers
+// @copyright      Copyright 2019 CERN
+// @license        This program is free software: you can redistribute it and/or modify
+//                 it under the terms of the GNU General Public License as published by
+//                 the Free Software Foundation, either version 3 of the License, or
+//                 (at your option) any later version.
+//
+//                 This program is distributed in the hope that it will be useful,
+//                 but WITHOUT ANY WARRANTY; without even the implied warranty of
+//                 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//                 GNU General Public License for more details.
+//
+//                 You should have received a copy of the GNU General Public License
+//                 along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+syntax  = "proto3";
+package cta.common;
+
+//
+// Common types
+//
+
+message Clock {
+  uint64 sec                 = 1;       //< seconds of a clock
+  uint64 nsec                = 2;       //< nanoseconds of a clock
+}
+
+message ChecksumBlob {
+  message Checksum {
+    enum Type {
+      NONE                   = 0;       //< No checksum specified
+      ADLER32                = 1;       //< Adler-32 checksum
+      CRC32                  = 2;       //< CRC-32 checksum
+      CRC32C                 = 3;       //< CRC-32C checksum
+      MD5                    = 4;       //< MD5 128-bit hash
+      SHA1                   = 5;       //< SHA-1 160-bit hash
+    }
+    Type type                = 1;
+    bytes value              = 2;
+  }
+  repeated Checksum cs       = 1;
+}
+
+message Service {
+  string name                = 1;       //< name of the service
+  string url                 = 2;       //< access url of the service
+}
+
+message RequesterId {
+  string username            = 1;       //< user name
+  string groupname           = 2;       //< group name
+}
+
+message OwnerId {
+  uint32 uid                 = 3;       //< user ID
+  uint32 gid                 = 4;       //< group ID
+}
+
+message Security {
+  string host                = 1;       //< client host 
+  string app                 = 2;       //< app string
+  string name                = 3;       //< security name
+  string prot                = 4;       //< security protocol
+  string grps                = 5;       //< security grps
+}
+
+message DiskFileInfo {
+  string path                = 3;       //< Path of the disk file
+  OwnerId owner_id           = 4;       //< Owner user ID and group ID of the disk file
+}
+
+message ArchiveFile {
+  uint64 archive_id          = 1;       //< Archive File ID
+  string disk_instance       = 2;       //< Disk instance
+  string disk_id             = 3;       //< Disk file ID
+  uint64 size                = 4;       //< File size
+  string storage_class       = 6;       //< Storage Class
+  DiskFileInfo df            = 7;       //< Disk File Info
+  uint64 creation_time       = 8;       //< Creation Time
+  ChecksumBlob csb           = 9;       //< Array of checksums
+}
+
+message TapeFile {
+  string vid                 = 1;       //< Volume ID of the tape on which the file has been written
+  uint64 f_seq               = 2;       //< The position of the file on tape: File Sequence number
+  uint64 block_id            = 3;       //< The position of the file on tape: Logical Block ID
+}
+
+message EntryLog {
+  string username            = 1;       //< user name
+  string host                = 2;       //< host name
+  uint64 time                = 3;       //< time_t
+}
+
+message TapeLog {
+  string drive               = 1;       //< drive name
+  uint64 time                = 2;       //< time
+}
+

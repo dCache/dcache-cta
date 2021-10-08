@@ -14,6 +14,7 @@
     <properties>
         <version.dcache>6.2.30</version.dcache>
         <java.version>11</java.version>
+        <version.grpc>1.38.1</version.grpc>
     </properties>
 
     <licenses>
@@ -37,6 +38,39 @@
             <artifactId>dcache-nearline-spi</artifactId>
             <version>${version.dcache}</version>
         </dependency>
+        <dependency>
+            <groupId>com.google.protobuf</groupId>
+            <artifactId>protobuf-java</artifactId>
+            <version>3.14.0</version>
+        </dependency>
+
+        <!-- enforce Java11 compliant version -->
+        <dependency>
+            <groupId>javax.annotation</groupId>
+            <artifactId>javax.annotation-api</artifactId>
+            <version>1.3.2</version>
+        </dependency>
+
+        <dependency>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-netty-shaded</artifactId>
+            <version>${version.grpc}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-protobuf</artifactId>
+            <version>${version.grpc}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-stub</artifactId>
+            <version>${version.grpc}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-tcnative-boringssl-static</artifactId>
+            <version>2.0.25.Final</version>
+        </dependency>
     </dependencies>
 
     <build>
@@ -54,9 +88,9 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.8.1</version>
                 <configuration>
+                    <encoding>UTF-8</encoding>
                     <fork>true</fork>
                     <release>${java.release}</release>
-                    <executable>/usr/lib/jvm/java-17/bin/javac</executable>
                 </configuration>
             </plugin>
 
