@@ -1,14 +1,10 @@
-# dCache Nearline Storage Driver for CTA
+Nearline Storage Plugin for dCache
+==================================
 
 This is nearline storage plugin for dCache.
 
-To compile the plugin, run:
-
-    mvn package
-
-This produces a tarball in the `target` directory containing the plugin.
-
-## Using the plugin with dCache
+Using the plugin with dCache
+----------------------------
 
 To use this plugin with dCache, place the directory containing this
 file in /usr/local/share/dcache/plugins/ on a dCache pool. Restart
@@ -23,5 +19,5 @@ The plugin should be listed.
 
 To activate the plugin, create an HSM instance using:
 
-    hsm create osm name org.dcache.cta.dcache-cta [-key=value]...
+    hsm create osm name org.dcache.nearline.cta.dcache-cta [-key=value]...
 
