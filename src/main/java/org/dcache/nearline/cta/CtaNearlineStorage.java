@@ -2,10 +2,15 @@ package org.dcache.nearline.cta;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import com.google.common.net.HostAndPort;
+import io.grpc.ManagedChannel;
+import io.grpc.ManagedChannelBuilder;
 import java.net.URI;
 import java.util.Map;
 import java.util.UUID;
 
+import org.dcache.cta.rpc.CtaRpcGrpc;
+import org.dcache.cta.rpc.CtaRpcGrpc.CtaRpcBlockingStub;
 import org.dcache.pool.nearline.spi.FlushRequest;
 import org.dcache.pool.nearline.spi.NearlineStorage;
 import org.dcache.pool.nearline.spi.RemoveRequest;
@@ -29,6 +34,7 @@ public class CtaNearlineStorage implements NearlineStorage {
     protected final String name;
 
     private RequestsFactory ctaRequestFactory;
+    private CtaRpcBlockingStub cta;
 
     public CtaNearlineStorage(String type, String name) {
         this.type = type;
@@ -101,12 +107,22 @@ public class CtaNearlineStorage implements NearlineStorage {
         checkArgument(user != null, "CTA user is not set.");
         checkArgument(group != null, "CTA group is not set.");
 
+        HostAndPort target = HostAndPort.fromString(endpoint);
+        checkArgument(target.hasPort(), "Port is not provided for CTA frontend");
+
         // Optional options
         String localEndpoint = properties.get(IO_ENDPOINT);
         String localPort = properties.get(IO_PORT);
 
         URI ioUrl = URI.create("root://" + localEndpoint + ":" + localPort);
         ctaRequestFactory = new RequestsFactory(instance, user, group, ioUrl.toString());
+
+        ManagedChannel channel = ManagedChannelBuilder
+              .forAddress(target.getHost(), target.getPort())
+              .usePlaintext()
+              .build();
+
+        cta = CtaRpcGrpc.newBlockingStub(channel);
     }
 
     /**
