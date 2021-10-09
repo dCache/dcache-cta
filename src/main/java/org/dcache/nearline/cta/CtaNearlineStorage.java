@@ -7,6 +7,7 @@ import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import java.net.URI;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 import org.dcache.cta.rpc.CtaRpcGrpc;
@@ -23,12 +24,12 @@ public class CtaNearlineStorage implements NearlineStorage {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(CtaNearlineStorage.class);
 
-    private final String CTA_INSTANCE = "cta-instance-name";
-    private final String CTA_ENDPOINT = "cta-frontend-addr";
-    private final String CTA_USER = "cta-user";
-    private final String CTA_GROUP = "cta-group";
-    private final String IO_ENDPOINT = "io-endpoint";
-    private final String IO_PORT = "io-port";
+    public static final String CTA_INSTANCE = "cta-instance-name";
+    public static final String CTA_ENDPOINT = "cta-frontend-addr";
+    public static final String CTA_USER = "cta-user";
+    public static final String CTA_GROUP = "cta-group";
+    public static final String IO_ENDPOINT = "io-endpoint";
+    public static final String IO_PORT = "io-port";
 
     protected final String type;
     protected final String name;
@@ -37,6 +38,10 @@ public class CtaNearlineStorage implements NearlineStorage {
     private CtaRpcBlockingStub cta;
 
     public CtaNearlineStorage(String type, String name) {
+
+        Objects.requireNonNull(type, "HSM type is not provided");
+        Objects.requireNonNull(name, "HSM name is not provided");
+
         this.type = type;
         this.name = name;
     }
