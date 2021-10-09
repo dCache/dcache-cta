@@ -10,8 +10,13 @@ import org.dcache.pool.nearline.spi.FlushRequest;
 import org.dcache.pool.nearline.spi.NearlineStorage;
 import org.dcache.pool.nearline.spi.RemoveRequest;
 import org.dcache.pool.nearline.spi.StageRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class CtaNearlineStorage implements NearlineStorage {
+
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(CtaNearlineStorage.class);
 
     private final String CTA_INSTANCE = "cta-instance-name";
     private final String CTA_ENDPOINT = "cta-frontend-addr";
