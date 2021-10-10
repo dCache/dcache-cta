@@ -4,6 +4,7 @@ import com.google.protobuf.ByteString;
 import cta.common.CtaCommon;
 import cta.eos.CtaEos;
 import java.nio.charset.StandardCharsets;
+import java.util.Objects;
 import org.dcache.cta.rpc.FileInfo;
 import org.dcache.pool.nearline.spi.FlushRequest;
 import org.dcache.cta.rpc.ArchiveRequest;
@@ -36,6 +37,11 @@ public class RequestsFactory {
      */
     public RequestsFactory(String service, String user, String group, String url) {
 
+        Objects.requireNonNull(service, "Service name is Null");
+        Objects.requireNonNull(user, "User name is Null");
+        Objects.requireNonNull(group, "Group name is Null");
+        Objects.requireNonNull(url, "IO url is Null");
+
         instance = CtaCommon.Service.newBuilder()
               .setName(service)
               .build();
@@ -55,7 +61,7 @@ public class RequestsFactory {
         FileAttributes dcacheFileAttrs = flushRequest.getFileAttributes();
 
         // REVISIT:
-        String reporter = String.format("eosQuery://%s//%s",
+        String reporter = String.format("eosQuery://%s",
                url + "/" + dcacheFileAttrs.getPnfsId());
 
         var transport = CtaEos.Transport.newBuilder()
@@ -83,7 +89,7 @@ public class RequestsFactory {
         var ctaFileInfo = FileInfo.newBuilder()
               .setSize(dcacheFileAttrs.getSize())
               .setFid(dcacheFileAttrs.getPnfsId().toString())
-              .setStorageClass(dcacheFileAttrs.getStorageClass())
+              .setStorageClass(dcacheFileAttrs.getStorageClass() + "@" + dcacheFileAttrs.getHsm())
               .setCsb(checksumBuilder.build())
               .build();
 
