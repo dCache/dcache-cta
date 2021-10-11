@@ -27,3 +27,6 @@ To activate the plugin, create an HSM instance using:
 
     hsm create osm name org.dcache.cta.dcache-cta [-key=value]...
 
+## Acknowledgements
+
+This driver is based and inspired by [`cta-communicator`](https://github.com/lemora/cta-communicator) by _Lea Morschel_ and  [`sapphire`](https://github.com/dCache/sapphire) by _Svenja Meyer_
