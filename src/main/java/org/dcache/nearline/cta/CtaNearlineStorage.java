@@ -2,17 +2,26 @@ package org.dcache.nearline.cta;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import com.google.common.base.Throwables;
 import com.google.common.net.HostAndPort;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.URI;
+import java.net.UnknownHostException;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ExecutionException;
 import org.dcache.cta.rpc.CtaRpcGrpc;
 import org.dcache.cta.rpc.CtaRpcGrpc.CtaRpcBlockingStub;
+import org.dcache.nearline.cta.xrootd.DataMover;
 import org.dcache.pool.nearline.spi.FlushRequest;
+import org.dcache.pool.nearline.spi.NearlineRequest;
 import org.dcache.pool.nearline.spi.NearlineStorage;
 import org.dcache.pool.nearline.spi.RemoveRequest;
 import org.dcache.pool.nearline.spi.StageRequest;
@@ -37,6 +46,10 @@ public class CtaNearlineStorage implements NearlineStorage {
     private RequestsFactory ctaRequestFactory;
     private CtaRpcBlockingStub cta;
 
+    private DataMover dataMover;
+
+    private final ConcurrentMap<String, NearlineRequest> pendingFlushes = new ConcurrentHashMap<>();
+
     public CtaNearlineStorage(String type, String name) {
 
         Objects.requireNonNull(type, "HSM type is not provided");
@@ -53,7 +66,28 @@ public class CtaNearlineStorage implements NearlineStorage {
      */
     @Override
     public void flush(Iterable<FlushRequest> requests) {
-        throw new UnsupportedOperationException("Not implemented");
+        for (var r : requests) {
+            try {
+                r.activate().get();
+                var ar = ctaRequestFactory.valueOf(r);
+                pendingFlushes.put(r.getId().toString(), r);
+                var resposne = cta.archive(ar);
+
+                LOGGER.info("{} : {} : archive id {}, request: {}",
+                      r.getId(),
+                      r.getFileAttributes().getPnfsId(),
+                      resposne.getFid(),
+                      resposne.getReqId()
+                );
+
+            } catch (ExecutionException | InterruptedException e) {
+                Throwable t = Throwables.getRootCause(e);
+                LOGGER.error("Failed to submit flush request: {}", t.getMessage());
+                pendingFlushes.remove(r.getId().toString());
+                r.failed(e);
+            }
+
+        }
     }
 
     /**
@@ -116,17 +150,29 @@ public class CtaNearlineStorage implements NearlineStorage {
 
         // Optional options
         String localEndpoint = properties.get(IO_ENDPOINT);
-        String localPort = properties.get(IO_PORT);
+        String localPort = properties.getOrDefault(IO_PORT, "0");
+        if (localEndpoint == null) {
+            try {
+                localEndpoint = InetAddress.getLocalHost().getCanonicalHostName();
+            } catch (UnknownHostException e) {
+                throw new IllegalArgumentException("Can't detect local host name", e);
+            }
+        }
 
-        URI ioUrl = URI.create("root://" + localEndpoint + ":" + localPort);
-        ctaRequestFactory = new RequestsFactory(instance, user, group, ioUrl.toString());
+        var sa = new InetSocketAddress(localEndpoint, Integer.parseInt(localPort));
+        dataMover = new DataMover(sa, pendingFlushes);
+        dataMover.startAsync().awaitRunning();
+        LOGGER.info("Xroot IO mover started on: {}", dataMover.getLocalSocketAddress());
 
         ManagedChannel channel = ManagedChannelBuilder
               .forAddress(target.getHost(), target.getPort())
               .usePlaintext()
               .build();
-
         cta = CtaRpcGrpc.newBlockingStub(channel);
+
+        URI ioUrl = URI.create("root://" + localEndpoint +
+              ":" + dataMover.getLocalSocketAddress().getPort());
+        ctaRequestFactory = new RequestsFactory(instance, user, group, ioUrl.toString());
     }
 
     /**
@@ -136,5 +182,8 @@ public class CtaNearlineStorage implements NearlineStorage {
      */
     @Override
     public void shutdown() {
+        if (dataMover != null) {
+            dataMover.stopAsync().awaitTerminated();
+        }
     }
 }

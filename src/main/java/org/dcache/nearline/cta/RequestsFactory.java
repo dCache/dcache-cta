@@ -4,7 +4,6 @@ import com.google.common.io.BaseEncoding;
 import com.google.protobuf.ByteString;
 import cta.common.CtaCommon;
 import cta.eos.CtaEos;
-import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 import org.dcache.cta.rpc.FileInfo;
 import org.dcache.pool.nearline.spi.FlushRequest;
@@ -66,7 +65,7 @@ public class RequestsFactory {
                url + "/" + dcacheFileAttrs.getPnfsId());
 
         var transport = CtaEos.Transport.newBuilder()
-              .setDstUrl(url + "/" + dcacheFileAttrs.getPnfsId())
+              .setDstUrl(url + "/" + flushRequest.getId())
               .setErrorReportUrl(reporter)
               .setReportUrl(reporter)
               .build();
