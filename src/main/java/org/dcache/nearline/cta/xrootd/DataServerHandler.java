@@ -49,7 +49,11 @@ import java.nio.file.NotDirectoryException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ConcurrentMap;
 import org.apache.commons.io.FilenameUtils;
+import org.dcache.pool.nearline.spi.FlushRequest;
+import org.dcache.pool.nearline.spi.NearlineRequest;
+import org.dcache.pool.nearline.spi.StageRequest;
 import org.dcache.xrootd.core.XrootdException;
 import org.dcache.xrootd.core.XrootdRequestHandler;
 import org.dcache.xrootd.protocol.messages.CloseRequest;
@@ -80,7 +84,7 @@ import org.dcache.xrootd.protocol.messages.StatxRequest;
 import org.dcache.xrootd.protocol.messages.StatxResponse;
 import org.dcache.xrootd.protocol.messages.SyncRequest;
 import org.dcache.xrootd.protocol.messages.WriteRequest;
-import org.dcache.xrootd.protocol.messages.ZeroCopyReadResponse;
+import org.dcache.xrootd.stream.ChunkedFileChannelReadResponse;
 import org.dcache.xrootd.stream.ChunkedFileReadvResponse;
 import org.dcache.xrootd.util.FileStatus;
 import org.slf4j.Logger;
@@ -97,6 +101,13 @@ public class DataServerHandler extends XrootdRequestHandler {
     private static final int MAX_FRAME_SIZE = 2 << 20;
 
     private final List<RandomAccessFile> _openFiles = new ArrayList<>();
+
+    private final ConcurrentMap<String, ? extends NearlineRequest> pendingRequests;
+
+    public DataServerHandler(
+          ConcurrentMap<String, ? extends NearlineRequest> pendingRequests) {
+        this.pendingRequests = pendingRequests;
+    }
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable t) {
@@ -356,11 +367,7 @@ public class DataServerHandler extends XrootdRequestHandler {
             return withOk(msg);
         }
 
-        try {
-            return new ZeroCopyReadResponse(msg, raf.getChannel());
-        } catch (IOException e) {
-            throw new XrootdException(kXR_IOError, e.getMessage());
-        }
+        return new ChunkedFileChannelReadResponse(msg, MAX_FRAME_SIZE, raf.getChannel());
     }
 
     /**
@@ -558,7 +565,26 @@ public class DataServerHandler extends XrootdRequestHandler {
 
     private File getFile(String path)
           throws XrootdException {
-        String normalized = FilenameUtils.normalize(path);
+
+        var r = pendingRequests.get(path);
+        if (r == null) {
+            throw new XrootdException(kXR_ArgInvalid, "Invalid path: " + path);
+        }
+
+        String localPath = null;
+        if (r instanceof FlushRequest) {
+            localPath = ((FlushRequest) r).getReplicaUri().getPath();
+        }
+
+        if (r instanceof StageRequest) {
+            localPath = ((StageRequest) r).getReplicaUri().getPath();
+        }
+
+        if (localPath == null) {
+            throw new XrootdException(kXR_ArgInvalid, "Invalid path: " + path);
+        }
+
+        String normalized = FilenameUtils.normalize(localPath);
         if (normalized == null) {
             throw new XrootdException(kXR_ArgInvalid, "Invalid path: " + path);
         }

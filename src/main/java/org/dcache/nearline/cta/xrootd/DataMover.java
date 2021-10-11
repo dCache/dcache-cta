@@ -16,13 +16,13 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.logging.LoggingHandler;
 import java.net.InetSocketAddress;
-import java.net.URL;
-import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Properties;
 import java.util.ServiceLoader;
+import java.util.concurrent.ConcurrentMap;
+import org.dcache.pool.nearline.spi.NearlineRequest;
 import org.dcache.xrootd.core.XrootdAuthenticationHandlerProvider;
 import org.dcache.xrootd.core.XrootdAuthorizationHandlerProvider;
 import org.dcache.xrootd.core.XrootdDecoder;
@@ -44,9 +44,13 @@ public class DataMover extends AbstractIdleService {
     private final EventLoopGroup bossGroup;
     private final EventLoopGroup workerGroup;
 
-    public DataMover(InetSocketAddress sa) {
+    private final ConcurrentMap<String, ? extends NearlineRequest> pendingRequests;
+
+    public DataMover(InetSocketAddress sa,
+          ConcurrentMap<String, ? extends NearlineRequest> pendingRequests) {
 
         try {
+            this.pendingRequests = pendingRequests;
             bossGroup = new NioEventLoopGroup();
             workerGroup = new NioEventLoopGroup();
 
@@ -86,14 +90,14 @@ public class DataMover extends AbstractIdleService {
         return (InetSocketAddress) cf.channel().localAddress();
     }
 
-    private static class XrootChallenInitializer extends ChannelInitializer<Channel> {
+    private class XrootChallenInitializer extends ChannelInitializer<Channel> {
 
         public final List<ChannelHandlerFactory> channelHandlerFactories;
         private final ServiceLoader<ChannelHandlerProvider> channelHandlerProviders;
 
         XrootChallenInitializer() throws Exception {
 
-            var pluginLoader =  this.getClass().getClassLoader();
+            var pluginLoader = this.getClass().getClassLoader();
             XrootdAuthenticationHandlerProvider.setPluginClassLoader(pluginLoader);
             XrootdAuthorizationHandlerProvider.setPluginClassLoader(pluginLoader);
 
@@ -101,7 +105,7 @@ public class DataMover extends AbstractIdleService {
                   ServiceLoader.load(ChannelHandlerProvider.class, pluginLoader);
 
             channelHandlerFactories = new ArrayList<>();
-            for (String plugin: List.of("authn:none")) {
+            for (String plugin : List.of("authn:none")) {
                 channelHandlerFactories.add(createHandlerFactory(plugin));
             }
         }
@@ -117,25 +121,26 @@ public class DataMover extends AbstractIdleService {
                 pipeline.addLast("logger", new LoggingHandler(XrootChallenInitializer.class));
             }
 
-            for (ChannelHandlerFactory factory: channelHandlerFactories) {
+            for (ChannelHandlerFactory factory : channelHandlerFactories) {
                 pipeline.addLast("plugin:" + factory.getName(), factory.createHandler());
             }
 
             pipeline.addLast("chunk-writer", new ChunkedResponseWriteHandler());
-            pipeline.addLast("data-server", new DataServerHandler());
+            pipeline.addLast("data-server", new DataServerHandler(pendingRequests));
         }
 
         public final ChannelHandlerFactory createHandlerFactory(String plugin)
-              throws Exception
-        {
-            for (ChannelHandlerProvider provider: channelHandlerProviders) {
+              throws Exception {
+            for (ChannelHandlerProvider provider : channelHandlerProviders) {
                 ChannelHandlerFactory factory =
                       provider.createFactory(plugin, new Properties());
                 if (factory != null) {
-                    LOGGER.debug("ChannelHandler plugin {} is provided by {}", plugin, provider.getClass());
+                    LOGGER.debug("ChannelHandler plugin {} is provided by {}", plugin,
+                          provider.getClass());
                     return factory;
                 } else {
-                    LOGGER.debug("ChannelHandler plugin {} could not be provided by {}", plugin, provider.getClass());
+                    LOGGER.debug("ChannelHandler plugin {} could not be provided by {}", plugin,
+                          provider.getClass());
                 }
             }
             throw new NoSuchElementException("Channel handler plugin not found: " + plugin);
