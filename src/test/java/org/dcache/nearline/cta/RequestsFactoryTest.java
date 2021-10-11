@@ -19,7 +19,6 @@ public class RequestsFactoryTest {
 
         var rf = new RequestsFactory("dcache", "foo", "bar", "https://localhost");
 
-
         var fileAttrs = FileAttributes.of()
               .pnfsId("00001234567812345678")
               .checksum(new Checksum(ChecksumType.ADLER32, "11223344"))
@@ -33,12 +32,13 @@ public class RequestsFactoryTest {
 
         var achriveRequest = rf.valueOf(flushRequest);
 
-        assertEquals(fileAttrs.getStorageClass() + "@" + fileAttrs.getHsm(), achriveRequest.getFile().getStorageClass());
+        assertEquals(fileAttrs.getStorageClass() + "@" + fileAttrs.getHsm(),
+              achriveRequest.getFile().getStorageClass());
         assertEquals(Type.ADLER32, achriveRequest.getFile().getCsb().getCs(0).getType());
-        assertEquals(ByteString.copyFromUtf8("11223344"), achriveRequest.getFile().getCsb().getCs(0).getValue());
+        assertEquals(ByteString.copyFromUtf8("11223344"),
+              achriveRequest.getFile().getCsb().getCs(0).getValue());
         assertEquals(fileAttrs.getSize(), achriveRequest.getFile().getSize());
-        assertEquals(fileAttrs.getPnfsId().toString(), achriveRequest.getFile().getFid() );
-
+        assertEquals(fileAttrs.getPnfsId().toString(), achriveRequest.getFile().getFid());
     }
 
 }

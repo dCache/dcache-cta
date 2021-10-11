@@ -80,9 +80,8 @@ public class CtaNearlineStorage implements NearlineStorage {
      * Cancel any flush, stage or remove request with the given id.
      *
      * <p>The failed method of any cancelled request should be called with a CancellationException.
-     * If
-     * the request completes before it can be cancelled, then the cancellation should be ignored and
-     * the completed or failed method should be called as appropriate.
+     * If the request completes before it can be cancelled, then the cancellation should be ignored
+     * and the completed or failed method should be called as appropriate.
      *
      * <p>A call to cancel must be non-blocking.
      *
