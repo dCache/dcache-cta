@@ -19,9 +19,11 @@ public class RequestsFactoryTest {
 
         var rf = new RequestsFactory("dcache", "foo", "bar", "https://localhost");
 
+        byte[] csum = new byte[] {0x11, 0x22, 0x33, 0x44};
+
         var fileAttrs = FileAttributes.of()
               .pnfsId("00001234567812345678")
-              .checksum(new Checksum(ChecksumType.ADLER32, "11223344"))
+              .checksum(new Checksum(ChecksumType.ADLER32, csum))
               .size(9876543210L)
               .storageClass("a:b")
               .hsm("cta")
@@ -35,7 +37,7 @@ public class RequestsFactoryTest {
         assertEquals(fileAttrs.getStorageClass() + "@" + fileAttrs.getHsm(),
               achriveRequest.getFile().getStorageClass());
         assertEquals(Type.ADLER32, achriveRequest.getFile().getCsb().getCs(0).getType());
-        assertEquals(ByteString.copyFromUtf8("11223344"),
+        assertEquals(ByteString.copyFrom(csum),
               achriveRequest.getFile().getCsb().getCs(0).getValue());
         assertEquals(fileAttrs.getSize(), achriveRequest.getFile().getSize());
         assertEquals(fileAttrs.getPnfsId().toString(), achriveRequest.getFile().getFid());

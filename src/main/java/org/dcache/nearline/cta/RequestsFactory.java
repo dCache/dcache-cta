@@ -1,5 +1,6 @@
 package org.dcache.nearline.cta;
 
+import com.google.common.io.BaseEncoding;
 import com.google.protobuf.ByteString;
 import cta.common.CtaCommon;
 import cta.eos.CtaEos;
@@ -79,7 +80,9 @@ public class RequestsFactory {
                       checksumBuilder.addCs(
                             CtaCommon.ChecksumBlob.Checksum.newBuilder()
                                   .setType(CtaCommon.ChecksumBlob.Checksum.Type.ADLER32)
-                                  .setValue(ByteString.copyFrom(cs.getValue(), StandardCharsets.US_ASCII))
+                                  .setValue(ByteString.copyFrom(
+                                        BaseEncoding.base16().lowerCase().decode(cs.getValue())
+                                  ))
                                   .build()
                       );
                   }
