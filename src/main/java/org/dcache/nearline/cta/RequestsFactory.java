@@ -6,14 +6,17 @@ import cta.common.CtaCommon;
 import cta.eos.CtaEos;
 import cta.eos.CtaEos.Transport;
 import java.io.File;
+import java.net.URI;
 import java.util.Objects;
 import org.dcache.cta.rpc.DeleteRequest;
 import org.dcache.cta.rpc.FileInfo;
+import org.dcache.cta.rpc.RetrieveRequest;
 import org.dcache.namespace.FileAttribute;
 import org.dcache.pool.nearline.spi.FlushRequest;
 import org.dcache.cta.rpc.ArchiveRequest;
 import org.dcache.pool.nearline.spi.NearlineRequest;
 import org.dcache.pool.nearline.spi.RemoveRequest;
+import org.dcache.pool.nearline.spi.StageRequest;
 import org.dcache.util.ChecksumType;
 import org.dcache.vehicles.FileAttributes;
 
@@ -30,16 +33,16 @@ public class RequestsFactory {
     private final CtaEos.Client client;
 
     /**
-     * URI used for IO transport. The final URI sent to CTA constructed as &lt;uri&gt;/&lt;pnfsid&gt;
+     * URI used for IO transport. The final URI sent to CTA constructed as
+     * &lt;uri&gt;/&lt;pnfsid&gt;
      */
     private final String url;
 
     /**
-     *
      * @param service
-     * @param user user name associated with the requests on the CTA side.
-     * @param group group name associated with the request on the CTA side.
-     * @param url  URI used for IO transport.
+     * @param user    user name associated with the requests on the CTA side.
+     * @param group   group name associated with the request on the CTA side.
+     * @param url     URI used for IO transport.
      */
     public RequestsFactory(String service, String user, String group, String url) {
 
@@ -62,11 +65,11 @@ public class RequestsFactory {
         this.url = url;
     }
 
-    public ArchiveRequest valueOf(FlushRequest flushRequest) {
+    public ArchiveRequest valueOf(FlushRequest request) {
 
-        FileAttributes dcacheFileAttrs = flushRequest.getFileAttributes();
+        FileAttributes dcacheFileAttrs = request.getFileAttributes();
 
-        Transport transport = getTransport(flushRequest);
+        Transport transport = getTransport(request);
 
         var checksumBuilder = CtaCommon.ChecksumBlob.newBuilder();
         if (dcacheFileAttrs.isDefined(FileAttribute.CHECKSUM)) {
@@ -95,14 +98,12 @@ public class RequestsFactory {
               .setCsb(checksumBuilder.build())
               .build();
 
-        var archiveArgs = ArchiveRequest.newBuilder()
+        return ArchiveRequest.newBuilder()
               .setInstance(instance)
               .setCli(client)
               .setTransport(transport)
               .setFile(ctaFileInfo)
               .build();
-
-        return archiveArgs;
     }
 
     public DeleteRequest valueOf(RemoveRequest request) {
@@ -120,21 +121,47 @@ public class RequestsFactory {
               .setFid(pnfsid)
               .build();
 
-        var deleteRequest = DeleteRequest.newBuilder()
+        return DeleteRequest.newBuilder()
               .setInstance(instance)
               .setCli(client)
               .setTransport(transport)
               .setFile(ctaFileInfo)
               .setArchiveId(archiveId)
               .build();
+    }
 
-        return deleteRequest;
+    public RetrieveRequest valueOf(StageRequest request) {
+
+        FileAttributes dcacheFileAttrs = request.getFileAttributes();
+
+        // we expect uri in form: cta://cta/<pnfsid>/archiveid
+
+        var uri = dcacheFileAttrs.getStorageInfo().locations().get(0);
+        File asPath = new File(uri.getPath());
+
+        long archiveId = Long.parseLong(asPath.getName());
+
+        var transport = getTransport(request);
+
+        var ctaFileInfo = FileInfo.newBuilder()
+              .setSize(dcacheFileAttrs.getSize())
+              .setFid(dcacheFileAttrs.getPnfsId().toString())
+              .setStorageClass(dcacheFileAttrs.getStorageClass() + "@" + dcacheFileAttrs.getHsm())
+              .build();
+
+        return RetrieveRequest.newBuilder()
+              .setInstance(instance)
+              .setCli(client)
+              .setTransport(transport)
+              .setFile(ctaFileInfo)
+              .setArchiveId(archiveId)
+              .build();
     }
 
     private Transport getTransport(NearlineRequest request) {
         // REVISIT:
         String reporter = String.format("eosQuery://%s",
-               url + "/" + request.getId());
+              url + "/" + request.getId());
 
         return Transport.newBuilder()
               .setDstUrl(url + "/" + request.getId())

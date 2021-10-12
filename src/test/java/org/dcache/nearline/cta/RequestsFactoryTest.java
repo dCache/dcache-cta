@@ -6,9 +6,11 @@ import static org.mockito.Mockito.mock;
 
 import com.google.protobuf.ByteString;
 import cta.common.CtaCommon.ChecksumBlob.Checksum.Type;
+import diskCacheV111.vehicles.GenericStorageInfo;
 import java.net.URI;
 import org.dcache.pool.nearline.spi.FlushRequest;
 import org.dcache.pool.nearline.spi.RemoveRequest;
+import org.dcache.pool.nearline.spi.StageRequest;
 import org.dcache.util.Checksum;
 import org.dcache.util.ChecksumType;
 import org.dcache.vehicles.FileAttributes;
@@ -21,7 +23,7 @@ public class RequestsFactoryTest {
 
         var rf = new RequestsFactory("dcache", "foo", "bar", "https://localhost");
 
-        byte[] csum = new byte[] {0x11, 0x22, 0x33, 0x44};
+        byte[] csum = new byte[]{0x11, 0x22, 0x33, 0x44};
 
         var fileAttrs = FileAttributes.of()
               .pnfsId("00001234567812345678")
@@ -62,4 +64,37 @@ public class RequestsFactoryTest {
         assertEquals(pnfsid, deleteRequest.getFile().getFid());
         assertEquals(archiveId, deleteRequest.getArchiveId());
     }
+
+    @Test
+    public void testRetrieve() {
+
+        var rf = new RequestsFactory("dcache", "foo", "bar", "https://localhost");
+
+        var pnfsid = "0000C9B4E3768770452E8B1B8E0232584872";
+        var archiveId = 12345L;
+        var uri = URI.create(String.format("cta://cta/%s/%d", pnfsid, archiveId));
+
+        var storageInfo = GenericStorageInfo.valueOf("a:b@z", "*");
+        storageInfo.addLocation(uri);
+
+        var fileAttrs = FileAttributes.of()
+              .pnfsId(pnfsid)
+              .size(9876543210L)
+              .storageClass("a:b")
+              .hsm("cta")
+              .storageInfo(storageInfo)
+              .build();
+
+        var flushRequest = mock(StageRequest.class);
+        given(flushRequest.getFileAttributes()).willReturn(fileAttrs);
+
+        var retrieveRequest = rf.valueOf(flushRequest);
+
+        assertEquals(fileAttrs.getStorageClass() + "@" + fileAttrs.getHsm(),
+              retrieveRequest.getFile().getStorageClass());
+        assertEquals(fileAttrs.getSize(), retrieveRequest.getFile().getSize());
+        assertEquals(fileAttrs.getPnfsId().toString(), retrieveRequest.getFile().getFid());
+        assertEquals(archiveId, retrieveRequest.getArchiveId());
+    }
+
 }
