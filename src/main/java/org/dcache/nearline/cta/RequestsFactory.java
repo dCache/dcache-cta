@@ -4,11 +4,16 @@ import com.google.common.io.BaseEncoding;
 import com.google.protobuf.ByteString;
 import cta.common.CtaCommon;
 import cta.eos.CtaEos;
+import cta.eos.CtaEos.Transport;
+import java.io.File;
 import java.util.Objects;
+import org.dcache.cta.rpc.DeleteRequest;
 import org.dcache.cta.rpc.FileInfo;
 import org.dcache.namespace.FileAttribute;
 import org.dcache.pool.nearline.spi.FlushRequest;
 import org.dcache.cta.rpc.ArchiveRequest;
+import org.dcache.pool.nearline.spi.NearlineRequest;
+import org.dcache.pool.nearline.spi.RemoveRequest;
 import org.dcache.util.ChecksumType;
 import org.dcache.vehicles.FileAttributes;
 
@@ -61,15 +66,7 @@ public class RequestsFactory {
 
         FileAttributes dcacheFileAttrs = flushRequest.getFileAttributes();
 
-        // REVISIT:
-        String reporter = String.format("eosQuery://%s",
-               url + "/" + dcacheFileAttrs.getPnfsId());
-
-        var transport = CtaEos.Transport.newBuilder()
-              .setDstUrl(url + "/" + flushRequest.getId())
-              .setErrorReportUrl(reporter)
-              .setReportUrl(reporter)
-              .build();
+        Transport transport = getTransport(flushRequest);
 
         var checksumBuilder = CtaCommon.ChecksumBlob.newBuilder();
         if (dcacheFileAttrs.isDefined(FileAttribute.CHECKSUM)) {
@@ -108,4 +105,41 @@ public class RequestsFactory {
         return archiveArgs;
     }
 
+    public DeleteRequest valueOf(RemoveRequest request) {
+
+        // we expect uri in form: cta://cta/<pnfsid>/archiveid
+        var uri = request.getUri();
+        File asPath = new File(uri.getPath());
+
+        String pnfsid = asPath.getParentFile().getName();
+        long archiveId = Long.parseLong(asPath.getName());
+
+        var transport = getTransport(request);
+
+        var ctaFileInfo = FileInfo.newBuilder()
+              .setFid(pnfsid)
+              .build();
+
+        var deleteRequest = DeleteRequest.newBuilder()
+              .setInstance(instance)
+              .setCli(client)
+              .setTransport(transport)
+              .setFile(ctaFileInfo)
+              .setArchiveId(archiveId)
+              .build();
+
+        return deleteRequest;
+    }
+
+    private Transport getTransport(NearlineRequest request) {
+        // REVISIT:
+        String reporter = String.format("eosQuery://%s",
+               url + "/" + request.getId());
+
+        return Transport.newBuilder()
+              .setDstUrl(url + "/" + request.getId())
+              .setErrorReportUrl(reporter)
+              .setReportUrl(reporter)
+              .build();
+    }
 }

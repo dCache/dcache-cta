@@ -6,7 +6,9 @@ import static org.mockito.Mockito.mock;
 
 import com.google.protobuf.ByteString;
 import cta.common.CtaCommon.ChecksumBlob.Checksum.Type;
+import java.net.URI;
 import org.dcache.pool.nearline.spi.FlushRequest;
+import org.dcache.pool.nearline.spi.RemoveRequest;
 import org.dcache.util.Checksum;
 import org.dcache.util.ChecksumType;
 import org.dcache.vehicles.FileAttributes;
@@ -43,4 +45,21 @@ public class RequestsFactoryTest {
         assertEquals(fileAttrs.getPnfsId().toString(), achriveRequest.getFile().getFid());
     }
 
+    @Test
+    public void testDelete() {
+
+        var rf = new RequestsFactory("dcache", "foo", "bar", "https://localhost");
+
+        var pnfsid = "0000C9B4E3768770452E8B1B8E0232584872";
+        var archiveId = 12345L;
+        var uri = URI.create(String.format("cta://cta/%s/%d", pnfsid, archiveId));
+
+        var removeRequest = mock(RemoveRequest.class);
+        given(removeRequest.getUri()).willReturn(uri);
+
+        var deleteRequest = rf.valueOf(removeRequest);
+
+        assertEquals(pnfsid, deleteRequest.getFile().getFid());
+        assertEquals(archiveId, deleteRequest.getArchiveId());
+    }
 }
