@@ -6,6 +6,7 @@ import cta.common.CtaCommon;
 import cta.eos.CtaEos;
 import java.util.Objects;
 import org.dcache.cta.rpc.FileInfo;
+import org.dcache.namespace.FileAttribute;
 import org.dcache.pool.nearline.spi.FlushRequest;
 import org.dcache.cta.rpc.ArchiveRequest;
 import org.dcache.util.ChecksumType;
@@ -71,22 +72,24 @@ public class RequestsFactory {
               .build();
 
         var checksumBuilder = CtaCommon.ChecksumBlob.newBuilder();
-        dcacheFileAttrs.getChecksums().forEach(cs -> {
+        if (dcacheFileAttrs.isDefined(FileAttribute.CHECKSUM)) {
+            dcacheFileAttrs.getChecksums().forEach(cs -> {
 
-                  // TODO: add other types as well.
-                  var type = cs.getType();
-                  if (type == ChecksumType.ADLER32) {
-                      checksumBuilder.addCs(
-                            CtaCommon.ChecksumBlob.Checksum.newBuilder()
-                                  .setType(CtaCommon.ChecksumBlob.Checksum.Type.ADLER32)
-                                  .setValue(ByteString.copyFrom(
-                                        BaseEncoding.base16().lowerCase().decode(cs.getValue())
-                                  ))
-                                  .build()
-                      );
+                      // TODO: add other types as well.
+                      var type = cs.getType();
+                      if (type == ChecksumType.ADLER32) {
+                          checksumBuilder.addCs(
+                                CtaCommon.ChecksumBlob.Checksum.newBuilder()
+                                      .setType(CtaCommon.ChecksumBlob.Checksum.Type.ADLER32)
+                                      .setValue(ByteString.copyFrom(
+                                            BaseEncoding.base16().lowerCase().decode(cs.getValue())
+                                      ))
+                                      .build()
+                          );
+                      }
                   }
-              }
-        );
+            );
+        }
 
         var ctaFileInfo = FileInfo.newBuilder()
               .setSize(dcacheFileAttrs.getSize())
