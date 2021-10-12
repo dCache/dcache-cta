@@ -7,6 +7,7 @@ import io.grpc.netty.shaded.io.grpc.netty.NettyServerBuilder;
 import io.grpc.stub.StreamObserver;
 import java.io.IOException;
 import java.net.SocketAddress;
+import java.util.concurrent.ThreadLocalRandom;
 import org.dcache.cta.rpc.ArchiveRequest;
 import org.dcache.cta.rpc.ArchiveResponse;
 import org.dcache.cta.rpc.CtaRpcGrpc;
@@ -45,7 +46,15 @@ public class DummyCta {
         @Override
         public void archive(ArchiveRequest request,
               StreamObserver<ArchiveResponse> responseObserver) {
-            super.archive(request, responseObserver);
+
+
+            var response = ArchiveResponse.newBuilder()
+                  .setFid(ThreadLocalRandom.current().nextLong())
+                  .setReqId("ArchiveRequest-" + ThreadLocalRandom.current().nextInt())
+                  .build();
+
+            responseObserver.onNext(response);
+            responseObserver.onCompleted();
         }
 
         @Override

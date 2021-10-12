@@ -1,11 +1,19 @@
 package org.dcache.nearline.cta;
 
 import static org.dcache.nearline.cta.CtaNearlineStorage.*;
-import static org.junit.Assert.*;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
+import com.google.common.util.concurrent.Futures;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+import org.dcache.pool.nearline.spi.FlushRequest;
+import org.dcache.vehicles.FileAttributes;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -97,4 +105,35 @@ public class CtaNearlineStorageTest {
         driver.configure(drvConfig);
     }
 
+    @Test
+    public void testRequestActivationOnSubmit() {
+
+
+        var request = mockedRequest();
+        var driver = new CtaNearlineStorage("foo", "bar");
+        driver.configure(drvConfig);
+
+        driver.flush(Set.of(request));
+
+        verify(request).activate();
+    }
+
+    private FlushRequest mockedRequest() {
+
+        var attrs = FileAttributes.of()
+              .size(9876543210L)
+              .storageClass("a:b")
+              .hsm("z")
+              .pnfsId("0000C9B4E3768770452E8B1B8E0232584872")
+              .build();
+
+        var request = mock(FlushRequest.class);
+
+
+        when(request.activate()).thenReturn(Futures.immediateFuture(null));
+        when(request.getFileAttributes()).thenReturn(attrs);
+        when(request.getId()).thenReturn(UUID.randomUUID());
+
+        return request;
+    }
 }
