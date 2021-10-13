@@ -107,7 +107,12 @@ public class CtaNearlineStorage implements NearlineStorage {
      */
     @Override
     public void remove(Iterable<RemoveRequest> requests) {
-        throw new UnsupportedOperationException("Not implemented");
+
+        for (var r : requests) {
+            var deleteRequest = ctaRequestFactory.valueOf(r);
+            var reply = cta.delete(deleteRequest);
+            r.completed(null);
+        }
     }
 
     /**
