@@ -40,7 +40,13 @@ public class DummyCta {
 
         @Override
         public void version(Empty request, StreamObserver<Version> responseObserver) {
-            super.version(request, responseObserver);
+            responseObserver.onNext(
+                  Version.newBuilder()
+                        .setCtaVersion("embedded dummy x-x-x")
+                        .setXrootdSsiProtobufInterfaceVersion("testing")
+                        .build()
+            );
+            responseObserver.onCompleted();
         }
 
         @Override
