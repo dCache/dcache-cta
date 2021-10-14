@@ -4,11 +4,11 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.common.base.Throwables;
 import com.google.common.net.HostAndPort;
+import com.google.protobuf.Empty;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.net.URI;
 import java.net.UnknownHostException;
 import java.util.Map;
 import java.util.Objects;
@@ -175,9 +175,12 @@ public class CtaNearlineStorage implements NearlineStorage {
               .build();
         cta = CtaRpcGrpc.newBlockingStub(channel);
 
-        URI ioUrl = URI.create("root://" + localEndpoint +
-              ":" + dataMover.getLocalSocketAddress().getPort());
-        ctaRequestFactory = new RequestsFactory(instance, user, group, ioUrl.toString());
+        var version = cta.version(Empty.newBuilder().build());
+        LOGGER.info("Connected to CTA version {} : {}", version.getCtaVersion(),
+              version.getXrootdSsiProtobufInterfaceVersion());
+
+        var url = localEndpoint + ":" + dataMover.getLocalSocketAddress().getPort();
+        ctaRequestFactory = new RequestsFactory(instance, user, group, url);
     }
 
     /**

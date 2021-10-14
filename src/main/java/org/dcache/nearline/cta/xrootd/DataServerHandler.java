@@ -21,10 +21,10 @@ import static org.dcache.xrootd.protocol.XrootdProtocol.kXR_ArgInvalid;
 import static org.dcache.xrootd.protocol.XrootdProtocol.kXR_ArgMissing;
 import static org.dcache.xrootd.protocol.XrootdProtocol.kXR_FileNotOpen;
 import static org.dcache.xrootd.protocol.XrootdProtocol.kXR_IOError;
-import static org.dcache.xrootd.protocol.XrootdProtocol.kXR_NotFile;
 import static org.dcache.xrootd.protocol.XrootdProtocol.kXR_NotFound;
 import static org.dcache.xrootd.protocol.XrootdProtocol.kXR_Qcksum;
 import static org.dcache.xrootd.protocol.XrootdProtocol.kXR_Qconfig;
+import static org.dcache.xrootd.protocol.XrootdProtocol.kXR_Qopaquf;
 import static org.dcache.xrootd.protocol.XrootdProtocol.kXR_Unsupported;
 import static org.dcache.xrootd.protocol.XrootdProtocol.kXR_isDir;
 import static org.dcache.xrootd.protocol.XrootdProtocol.kXR_isDirectory;
@@ -43,10 +43,6 @@ import java.io.RandomAccessFile;
 import java.net.InetSocketAddress;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.FileChannel;
-import java.nio.file.DirectoryStream;
-import java.nio.file.Files;
-import java.nio.file.NotDirectoryException;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentMap;
@@ -57,13 +53,10 @@ import org.dcache.pool.nearline.spi.StageRequest;
 import org.dcache.xrootd.core.XrootdException;
 import org.dcache.xrootd.core.XrootdRequestHandler;
 import org.dcache.xrootd.protocol.messages.CloseRequest;
-import org.dcache.xrootd.protocol.messages.DirListRequest;
-import org.dcache.xrootd.protocol.messages.DirListResponse;
+import org.dcache.xrootd.protocol.messages.EndSessionRequest;
 import org.dcache.xrootd.protocol.messages.GenericReadRequestMessage.EmbeddedReadRequest;
 import org.dcache.xrootd.protocol.messages.LocateRequest;
 import org.dcache.xrootd.protocol.messages.LocateResponse;
-import org.dcache.xrootd.protocol.messages.MkDirRequest;
-import org.dcache.xrootd.protocol.messages.MvRequest;
 import org.dcache.xrootd.protocol.messages.OkResponse;
 import org.dcache.xrootd.protocol.messages.OpenRequest;
 import org.dcache.xrootd.protocol.messages.OpenResponse;
@@ -74,8 +67,6 @@ import org.dcache.xrootd.protocol.messages.QueryRequest;
 import org.dcache.xrootd.protocol.messages.QueryResponse;
 import org.dcache.xrootd.protocol.messages.ReadRequest;
 import org.dcache.xrootd.protocol.messages.ReadVRequest;
-import org.dcache.xrootd.protocol.messages.RmDirRequest;
-import org.dcache.xrootd.protocol.messages.RmRequest;
 import org.dcache.xrootd.protocol.messages.SetRequest;
 import org.dcache.xrootd.protocol.messages.SetResponse;
 import org.dcache.xrootd.protocol.messages.StatRequest;
@@ -113,20 +104,23 @@ public class DataServerHandler extends XrootdRequestHandler {
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable t) {
         if (t instanceof ClosedChannelException) {
             LOGGER.info("Connection closed");
-        } else if (t instanceof RuntimeException || t instanceof Error) {
+        } else {
+            LOGGER.warn("unexpected exception", t);
             Thread me = Thread.currentThread();
             me.getUncaughtExceptionHandler().uncaughtException(me, t);
-        } else {
-            LOGGER.warn(t.toString());
         }
-        // TODO: If not already closed, we should probably close the
-        // channel.
+        ctx.close();
     }
 
     @Override
     protected ProtocolResponse doOnProtocolRequest(
           ChannelHandlerContext ctx, ProtocolRequest msg) {
         return new ProtocolResponse(msg, DATA_SERVER);
+    }
+
+    @Override
+    protected Object doOnEndSession(ChannelHandlerContext ctx, EndSessionRequest request) {
+        return withOk(request);
     }
 
     @Override
@@ -387,6 +381,9 @@ public class DataServerHandler extends XrootdRequestHandler {
                 } catch (IOException e) {
                     throw new XrootdException(kXR_IOError, e.getMessage());
                 }
+
+            case kXR_Qopaquf:
+                return new QueryResponse(msg, "");
 
             default:
                 LOGGER.error("Unsupported query code: {}", msg.getReqcode());
