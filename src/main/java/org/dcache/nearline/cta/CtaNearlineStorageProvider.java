@@ -7,10 +7,13 @@ import java.security.ProtectionDomain;
 import java.util.jar.Attributes;
 import java.util.jar.JarInputStream;
 import java.util.jar.Manifest;
-import org.dcache.pool.nearline.spi.NearlineStorage;
 import org.dcache.pool.nearline.spi.NearlineStorageProvider;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class CtaNearlineStorageProvider implements NearlineStorageProvider {
+
+    private final static Logger LOGGER = LoggerFactory.getLogger(CtaNearlineStorageProvider.class);
 
     private static String VERSION = "<Unknown>";
 
@@ -35,6 +38,9 @@ public class CtaNearlineStorageProvider implements NearlineStorageProvider {
         }
     }
 
+    public CtaNearlineStorageProvider() {
+        LOGGER.info("Initializing : {}", getDescription());
+    }
 
     @Override
     public String getName() {
