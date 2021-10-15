@@ -188,7 +188,7 @@ public class DataServerHandler extends XrootdRequestHandler {
             File parent = file.getParentFile();
 
             RandomAccessFile raf;
-            if (msg.isReadWrite()) {
+            if (msg.isReadWrite() || msg.isNew() || msg.isDelete()) {
                 if (msg.isMkPath() && !parent.exists() && !parent.mkdirs()) {
                     throw new XrootdException(kXR_IOError,
                           "Failed to create directories: " + parent);
@@ -196,8 +196,13 @@ public class DataServerHandler extends XrootdRequestHandler {
                 if (msg.isNew() && !file.createNewFile()) {
                     throw new XrootdException(kXR_IOError, "Failed to create file: " + file);
                 }
+                LOGGER.info("Opening {} for write", file);
                 raf = new RandomAccessFile(file, "rw");
+                if (msg.isDelete()) {
+                    raf.setLength(0);
+                }
             } else {
+                LOGGER.info("Opening {} for read", file);
                 raf = new RandomAccessFile(file, "r");
             }
 

@@ -97,7 +97,26 @@ public class CtaNearlineStorage implements NearlineStorage {
      */
     @Override
     public void stage(Iterable<StageRequest> requests) {
-        throw new UnsupportedOperationException("Not implemented");
+        for (var r : requests) {
+            try {
+                r.activate().get();
+                var rr = ctaRequestFactory.valueOf(r);
+                pendingFlushes.put(r.getId().toString(), r);
+                var response = cta.retrieve(rr);
+
+                LOGGER.info("{} : {} : request: {}",
+                      r.getId(),
+                      r.getFileAttributes().getPnfsId(),
+                      response.getReqId()
+                );
+
+            } catch (ExecutionException | InterruptedException e) {
+                Throwable t = Throwables.getRootCause(e);
+                LOGGER.error("Failed to submit retrieve request: {}", t.getMessage());
+                pendingFlushes.remove(r.getId().toString());
+                r.failed(e);
+            }
+        }
     }
 
     /**
