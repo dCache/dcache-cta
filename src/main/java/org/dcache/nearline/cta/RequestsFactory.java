@@ -78,12 +78,19 @@ public class RequestsFactory {
                       // TODO: add other types as well.
                       var type = cs.getType();
                       if (type == ChecksumType.ADLER32) {
+
+                          // CTA expects the sum as short encoded in little-endian format
+                          var dcacheSum = BaseEncoding.base16().lowerCase().decode(cs.getValue());
+                          var ctaSum = new byte[4];
+                          ctaSum[0] = dcacheSum[3];
+                          ctaSum[1] = dcacheSum[2];
+                          ctaSum[2] = dcacheSum[1];
+                          ctaSum[3] = dcacheSum[0];
+
                           checksumBuilder.addCs(
                                 CtaCommon.ChecksumBlob.Checksum.newBuilder()
                                       .setType(CtaCommon.ChecksumBlob.Checksum.Type.ADLER32)
-                                      .setValue(ByteString.copyFrom(
-                                            BaseEncoding.base16().lowerCase().decode(cs.getValue())
-                                      ))
+                                      .setValue(ByteString.copyFrom(ctaSum))
                                       .build()
                           );
                       }
