@@ -35,6 +35,7 @@ import static org.dcache.xrootd.protocol.XrootdProtocol.kXR_xset;
 
 import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
+import diskCacheV111.util.CacheException;
 import io.netty.channel.ChannelHandlerContext;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -390,35 +391,41 @@ public class DataServerHandler extends XrootdRequestHandler {
                 var query = msg.getArgs();
                 LOGGER.info("XROOD query: {}", query);
 
-                final var prefix = "archiveid=";
+                final var idPrefix = "archiveid=";
+                final var errorPrefix = "error=";
+
+                if (!query.startsWith("/error/") && !query.startsWith("/success/")) {
+                    throw new XrootdException(kXR_ArgInvalid, "Invalid request");
+                }
+
+                var url = URI.create(query);
+                var uriQuery = url.getQuery();
+
+                var requestId = new File(url.getPath()).getName();
+                var r = pendingRequests.remove(requestId);
+                if (r == null) {
+                    throw new XrootdException(kXR_ArgInvalid, "Invalid request id");
+                }
 
                 if (query.startsWith("/error/")) {
-                    File asFile = new File(query);
-                    var error = new String(Base64.getDecoder().decode(asFile.getName()),
-                          StandardCharsets.UTF_8);
-                    var requestId = asFile.getParentFile().getName();
-                    LOGGER.error("Error report on flushing: {} : {}", requestId, error);
-                } else if (query.startsWith("/success/")) {
-                    var url = URI.create(query);
-                    var requestId = new File(url.getPath()).getName();
-                    var uriQuery = url.getQuery();
-                    if (!uriQuery.startsWith(prefix)) {
+                    if (!uriQuery.startsWith(errorPrefix)) {
                         throw new XrootdException(kXR_ArgInvalid, "Invalid success uri");
                     }
-                    var archiveId = Long.parseLong(uriQuery.substring(prefix.length()));
-                    var r = pendingRequests.remove(requestId);
-                    if (r == null) {
-                        throw new XrootdException(kXR_ArgInvalid, "Invalid request id");
+                    var error = new String(
+                          Base64.getDecoder().decode(uriQuery.substring(errorPrefix.length())),
+                          StandardCharsets.UTF_8);
+                    LOGGER.error("Error report on flushing: {} : {}", requestId, error);
+                    r.failed(CacheException.SERVICE_UNAVAILABLE, error);
+                } else if (query.startsWith("/success/")) {
+                    if (!uriQuery.startsWith(idPrefix)) {
+                        throw new XrootdException(kXR_ArgInvalid, "Invalid success uri");
                     }
-
+                    var archiveId = Long.parseLong(uriQuery.substring(idPrefix.length()));
                     // FIXME: don't do this for restore
                     var hsmUrl = URI.create("osm://cta/archiveid=" + archiveId);
                     r.completed(Set.of(hsmUrl));
 
                     LOGGER.info("Successful flushing: {} : archive id: {}", requestId, archiveId);
-
-                } else {
-                    throw new XrootdException(kXR_NotFound, "Invalid request");
                 }
 
                 return new QueryResponse(msg, "");
