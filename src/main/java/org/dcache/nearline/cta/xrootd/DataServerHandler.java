@@ -422,7 +422,7 @@ public class DataServerHandler extends XrootdRequestHandler {
                     }
                     var archiveId = Long.parseLong(uriQuery.substring(idPrefix.length()));
                     // FIXME: don't do this for restore
-                    var hsmUrl = URI.create("osm://cta/archiveid=" + archiveId);
+                    var hsmUrl = URI.create("osm://cta?archiveid=" + archiveId);
                     r.completed(Set.of(hsmUrl));
 
                     LOGGER.info("Successful flushing: {} : archive id: {}", requestId, archiveId);

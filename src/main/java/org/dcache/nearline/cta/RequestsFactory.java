@@ -140,12 +140,10 @@ public class RequestsFactory {
 
         FileAttributes dcacheFileAttrs = request.getFileAttributes();
 
-        // we expect uri in form: cta://cta/<pnfsid>/archiveid
+        // we expect uri in form: cta://cta?archiveid=xxxx
 
         var uri = dcacheFileAttrs.getStorageInfo().locations().get(0);
-        File asPath = new File(uri.getPath());
-
-        long archiveId = Long.parseLong(asPath.getName());
+        long archiveId = Long.parseLong(uri.getQuery().substring("archiveid=".length()));
 
         var transport = getTransport(request);
 
