@@ -71,13 +71,13 @@ public class CtaNearlineStorage implements NearlineStorage {
                 r.activate().get();
                 var ar = ctaRequestFactory.valueOf(r);
                 pendingFlushes.put(r.getId().toString(), r);
-                var resposne = cta.archive(ar);
+                var response = cta.archive(ar);
 
                 LOGGER.info("{} : {} : archive id {}, request: {}",
                       r.getId(),
                       r.getFileAttributes().getPnfsId(),
-                      resposne.getFid(),
-                      resposne.getReqId()
+                      response.getFid(),
+                      response.getReqId()
                 );
 
             } catch (ExecutionException | InterruptedException e) {
