@@ -43,7 +43,9 @@ import java.io.RandomAccessFile;
 import java.net.InetSocketAddress;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.FileChannel;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
 import java.util.concurrent.ConcurrentMap;
 import org.apache.commons.io.FilenameUtils;
@@ -383,6 +385,13 @@ public class DataServerHandler extends XrootdRequestHandler {
                 }
 
             case kXR_Qopaquf:
+                var query = msg.getArgs();
+                LOGGER.info("XROOD query: {}", query);
+                if(query.startsWith("/error/")) {
+                    File asFile = new File(query);
+                    var error = new String(Base64.getDecoder().decode(asFile.getName()), StandardCharsets.UTF_8);
+                    LOGGER.error("Error report on flushing: {} : {}", asFile.getParentFile().getName(), error);
+                }
                 return new QueryResponse(msg, "");
 
             default:

@@ -160,12 +160,13 @@ public class RequestsFactory {
 
     private Transport getTransport(NearlineRequest request) {
         // REVISIT:
-        String reporter = "eosQuery://" + url + "/" + request.getId() + "/";
+        String reporterUrl = "eosQuery://" + url + "/status/" + request.getId() + "/";
+        String errorReporter = "eosQuery://" + url + "/error/" + request.getId() + "/";
 
         return Transport.newBuilder()
               .setDstUrl("root://" + url + "/" + request.getId())
-              .setErrorReportUrl(reporter)
-              .setReportUrl(reporter)
+              .setErrorReportUrl(errorReporter)
+              .setReportUrl(reporterUrl)
               .build();
     }
 }
