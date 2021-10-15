@@ -41,12 +41,14 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.net.InetSocketAddress;
+import java.net.URI;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ConcurrentMap;
 import org.apache.commons.io.FilenameUtils;
 import org.dcache.pool.nearline.spi.FlushRequest;
@@ -387,11 +389,38 @@ public class DataServerHandler extends XrootdRequestHandler {
             case kXR_Qopaquf:
                 var query = msg.getArgs();
                 LOGGER.info("XROOD query: {}", query);
-                if(query.startsWith("/error/")) {
+
+                final var prefix = "archiveid=";
+
+                if (query.startsWith("/error/")) {
                     File asFile = new File(query);
-                    var error = new String(Base64.getDecoder().decode(asFile.getName()), StandardCharsets.UTF_8);
-                    LOGGER.error("Error report on flushing: {} : {}", asFile.getParentFile().getName(), error);
+                    var error = new String(Base64.getDecoder().decode(asFile.getName()),
+                          StandardCharsets.UTF_8);
+                    var requestId = asFile.getParentFile().getName();
+                    LOGGER.error("Error report on flushing: {} : {}", requestId, error);
+                } else if (query.startsWith("/success/")) {
+                    var url = URI.create(query);
+                    var requestId = new File(url.getPath()).getName();
+                    var uriQuery = url.getQuery();
+                    if (!uriQuery.startsWith(prefix)) {
+                        throw new XrootdException(kXR_ArgInvalid, "Invalid success uri");
+                    }
+                    var archiveId = Long.parseLong(uriQuery.substring(prefix.length()));
+                    var r = pendingRequests.remove(requestId);
+                    if (r == null) {
+                        throw new XrootdException(kXR_ArgInvalid, "Invalid request id");
+                    }
+
+                    // FIXME: don't do this for restore
+                    var hsmUrl = URI.create("osm://cta/archiveid=" + archiveId);
+                    r.completed(Set.of(hsmUrl));
+
+                    LOGGER.info("Successful flushing: {} : archive id: {}", requestId, archiveId);
+
+                } else {
+                    throw new XrootdException(kXR_NotFound, "Invalid request");
                 }
+
                 return new QueryResponse(msg, "");
 
             default:

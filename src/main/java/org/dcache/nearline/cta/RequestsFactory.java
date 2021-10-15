@@ -6,7 +6,6 @@ import cta.common.CtaCommon;
 import cta.eos.CtaEos;
 import cta.eos.CtaEos.Transport;
 import java.io.File;
-import java.net.URI;
 import java.util.Objects;
 import org.dcache.cta.rpc.DeleteRequest;
 import org.dcache.cta.rpc.FileInfo;
@@ -167,7 +166,7 @@ public class RequestsFactory {
 
     private Transport getTransport(NearlineRequest request) {
         // REVISIT:
-        String reporterUrl = "eosQuery://" + url + "/status/" + request.getId() + "/";
+        String reporterUrl = "eosQuery://" + url + "/success/" + request.getId();
         String errorReporter = "eosQuery://" + url + "/error/" + request.getId() + "/";
 
         return Transport.newBuilder()
