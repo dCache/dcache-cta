@@ -27,6 +27,14 @@ To activate the plugin, create an HSM instance using:
 
     hsm create osm name dcache-cta [-key=value]...
 
+example:
+
+    hsm create osm cta dcache-cta -cta-user=userA \
+         -cta-group=groupA -cta-instance-name=instanceA \
+         -cta-frontend-addr=cta-forntend-host:17017 \
+         -io-endpoint=a.b.c.d -io-port=1094
+
+
 ### The available configuration options:
 
 | Name | Description | required | default |
