@@ -495,7 +495,7 @@ public class DataServerHandler extends XrootdRequestHandler {
 
         var r = pendingRequests.get(path);
         if (r == null) {
-            throw new XrootdException(kXR_ArgInvalid, "Invalid path: " + path);
+            throw new XrootdException(kXR_NotFound, "Request not found: " + path);
         }
 
         String localPath = null;
