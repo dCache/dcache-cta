@@ -185,17 +185,8 @@ public class DataServerHandler extends XrootdRequestHandler {
                 throw new XrootdException(kXR_isDirectory, "Not a file: " + file);
             }
 
-            File parent = file.getParentFile();
-
             RandomAccessFile raf;
             if (msg.isReadWrite() || msg.isNew() || msg.isDelete()) {
-                if (msg.isMkPath() && !parent.exists() && !parent.mkdirs()) {
-                    throw new XrootdException(kXR_IOError,
-                          "Failed to create directories: " + parent);
-                }
-                if (msg.isNew() && !file.createNewFile()) {
-                    throw new XrootdException(kXR_IOError, "Failed to create file: " + file);
-                }
                 LOGGER.info("Opening {} for write", file);
                 raf = new RandomAccessFile(file, "rw");
                 if (msg.isDelete()) {
@@ -206,28 +197,17 @@ public class DataServerHandler extends XrootdRequestHandler {
                 raf = new RandomAccessFile(file, "r");
             }
 
-            try {
-                if (msg.isReadWrite() && msg.isDelete()) {
-                    raf.setLength(0);
-                }
-
-                FileStatus stat = null;
-                if (msg.isRetStat()) {
-                    stat = statusByFile(file);
-                }
-
-                int fd = addOpenFile(raf);
-                raf = null;
-                return new OpenResponse(msg,
-                      fd,
-                      null,
-                      null,
-                      stat);
-            } finally {
-                if (raf != null) {
-                    raf.close();
-                }
+            FileStatus stat = null;
+            if (msg.isRetStat()) {
+                stat = statusByFile(file);
             }
+
+            int fd = addOpenFile(raf);
+            return new OpenResponse(msg,
+                  fd,
+                  null,
+                  null,
+                  stat);
         } catch (FileNotFoundException e) {
             throw new XrootdException(kXR_NotFound, e.getMessage());
         } catch (IOException e) {
