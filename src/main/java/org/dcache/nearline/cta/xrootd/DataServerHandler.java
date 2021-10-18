@@ -18,12 +18,9 @@ package org.dcache.nearline.cta.xrootd;
 
 import static org.dcache.xrootd.protocol.XrootdProtocol.DATA_SERVER;
 import static org.dcache.xrootd.protocol.XrootdProtocol.kXR_ArgInvalid;
-import static org.dcache.xrootd.protocol.XrootdProtocol.kXR_ArgMissing;
 import static org.dcache.xrootd.protocol.XrootdProtocol.kXR_FileNotOpen;
 import static org.dcache.xrootd.protocol.XrootdProtocol.kXR_IOError;
 import static org.dcache.xrootd.protocol.XrootdProtocol.kXR_NotFound;
-import static org.dcache.xrootd.protocol.XrootdProtocol.kXR_Qcksum;
-import static org.dcache.xrootd.protocol.XrootdProtocol.kXR_Qconfig;
 import static org.dcache.xrootd.protocol.XrootdProtocol.kXR_Qopaquf;
 import static org.dcache.xrootd.protocol.XrootdProtocol.kXR_Unsupported;
 import static org.dcache.xrootd.protocol.XrootdProtocol.kXR_isDir;
@@ -33,15 +30,12 @@ import static org.dcache.xrootd.protocol.XrootdProtocol.kXR_readable;
 import static org.dcache.xrootd.protocol.XrootdProtocol.kXR_writable;
 import static org.dcache.xrootd.protocol.XrootdProtocol.kXR_xset;
 
-import com.google.common.hash.HashCode;
-import com.google.common.hash.Hashing;
 import diskCacheV111.util.CacheException;
 import io.netty.channel.ChannelHandlerContext;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
-import java.net.InetSocketAddress;
 import java.net.URI;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.FileChannel;
@@ -51,7 +45,6 @@ import java.util.Base64;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentMap;
-import org.apache.commons.io.FilenameUtils;
 import org.dcache.pool.nearline.spi.FlushRequest;
 import org.dcache.pool.nearline.spi.NearlineRequest;
 import org.dcache.pool.nearline.spi.StageRequest;
@@ -59,9 +52,6 @@ import org.dcache.xrootd.core.XrootdException;
 import org.dcache.xrootd.core.XrootdRequestHandler;
 import org.dcache.xrootd.protocol.messages.CloseRequest;
 import org.dcache.xrootd.protocol.messages.EndSessionRequest;
-import org.dcache.xrootd.protocol.messages.GenericReadRequestMessage.EmbeddedReadRequest;
-import org.dcache.xrootd.protocol.messages.LocateRequest;
-import org.dcache.xrootd.protocol.messages.LocateResponse;
 import org.dcache.xrootd.protocol.messages.OkResponse;
 import org.dcache.xrootd.protocol.messages.OpenRequest;
 import org.dcache.xrootd.protocol.messages.OpenResponse;
@@ -71,17 +61,11 @@ import org.dcache.xrootd.protocol.messages.ProtocolResponse;
 import org.dcache.xrootd.protocol.messages.QueryRequest;
 import org.dcache.xrootd.protocol.messages.QueryResponse;
 import org.dcache.xrootd.protocol.messages.ReadRequest;
-import org.dcache.xrootd.protocol.messages.ReadVRequest;
-import org.dcache.xrootd.protocol.messages.SetRequest;
-import org.dcache.xrootd.protocol.messages.SetResponse;
 import org.dcache.xrootd.protocol.messages.StatRequest;
 import org.dcache.xrootd.protocol.messages.StatResponse;
-import org.dcache.xrootd.protocol.messages.StatxRequest;
-import org.dcache.xrootd.protocol.messages.StatxResponse;
 import org.dcache.xrootd.protocol.messages.SyncRequest;
 import org.dcache.xrootd.protocol.messages.WriteRequest;
 import org.dcache.xrootd.stream.ChunkedFileChannelReadResponse;
-import org.dcache.xrootd.stream.ChunkedFileReadvResponse;
 import org.dcache.xrootd.util.FileStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -155,29 +139,6 @@ public class DataServerHandler extends XrootdRequestHandler {
     }
 
     @Override
-    protected StatxResponse doOnStatx(ChannelHandlerContext ctx,
-          StatxRequest req)
-          throws XrootdException {
-        if (req.getPaths().length == 0) {
-            throw new XrootdException(kXR_ArgMissing, "no paths specified");
-        }
-
-        String[] paths = req.getPaths();
-        String[] opaques = req.getOpaques();
-        int[] flags = new int[paths.length];
-        for (int i = 0; i < paths.length; i++) {
-            File file = getFile(paths[i]);
-            if (!file.exists()) {
-                flags[i] = kXR_other;
-            } else {
-                flags[i] = getFileStatusFlagsOf(file);
-            }
-        }
-
-        return new StatxResponse(req, flags);
-    }
-
-    @Override
     protected OkResponse<PrepareRequest> doOnPrepare(ChannelHandlerContext ctx,
           PrepareRequest msg) {
         return withOk(msg);
@@ -193,7 +154,8 @@ public class DataServerHandler extends XrootdRequestHandler {
           OpenRequest msg)
           throws XrootdException {
         try {
-            File file = getFile(msg.getPath());
+            NearlineRequest r = getIORequest(msg.getPath());
+            var file = getFile(r);
             if (file.isDirectory()) {
                 throw new XrootdException(kXR_isDirectory, "Not a file: " + file);
             }
@@ -201,7 +163,14 @@ public class DataServerHandler extends XrootdRequestHandler {
             RandomAccessFile raf;
             if (msg.isReadWrite() || msg.isNew() || msg.isDelete()) {
                 LOGGER.info("Opening {} for write", file);
-                raf = new RandomAccessFile(file, "rw");
+                raf = new RandomAccessFile(file, "rw")  {
+                    @Override
+                    public void close() throws IOException {
+                        super.close();
+                        LOGGER.info("Restore Complete for {}", r.getId());
+                        r.completed(Set.of());
+                    }
+                };
                 if (msg.isDelete()) {
                     raf.setLength(0);
                 }
@@ -245,29 +214,6 @@ public class DataServerHandler extends XrootdRequestHandler {
         }
 
         return new ChunkedFileChannelReadResponse(msg, MAX_FRAME_SIZE, raf.getChannel());
-    }
-
-    /**
-     * Vector reads consist of several embedded read requests, which can even contain different file
-     * handles. All the descriptors for the file handles are looked up and passed to a vector
-     * reader. The vector reader will use the descriptors connection to the mover that "owns" them
-     * to update the mover's meta-information such as the number of bytes transferred or the time of
-     * the last update.
-     *
-     * @param ctx received from the netty pipeline
-     * @param msg The actual request.
-     */
-    @Override
-    protected ChunkedFileReadvResponse doOnReadV(ChannelHandlerContext ctx,
-          ReadVRequest msg)
-          throws XrootdException {
-        EmbeddedReadRequest[] requests = msg.getReadRequestList();
-        if (requests == null || requests.length == 0) {
-            throw new XrootdException(kXR_ArgMissing,
-                  "Request contains no vector");
-        }
-
-        return new ChunkedFileReadvResponse(msg, MAX_FRAME_SIZE, _openFiles);
     }
 
     /**
@@ -327,63 +273,9 @@ public class DataServerHandler extends XrootdRequestHandler {
     }
 
     @Override
-    protected LocateResponse doOnLocate(ChannelHandlerContext ctx,
-          LocateRequest msg) throws XrootdException {
-        File file = getFile(stripLeadingAsterix(msg.getPath()));
-        if (!file.exists()) {
-            return new LocateResponse(msg);
-        } else {
-            return new LocateResponse(msg,
-                  new LocateResponse.InfoElement(
-                        (InetSocketAddress) ctx.channel().localAddress(),
-                        LocateResponse.Node.SERVER,
-                        file.canWrite() ? LocateResponse.Access.WRITE
-                              : LocateResponse.Access.READ));
-        }
-    }
-
-    @Override
     protected QueryResponse doOnQuery(ChannelHandlerContext ctx, QueryRequest msg)
           throws XrootdException {
         switch (msg.getReqcode()) {
-            case kXR_Qconfig:
-                LOGGER.info("XROOD query: {} {}", msg.getArgs(), msg.getOpaque());
-                StringBuilder s = new StringBuilder();
-                for (String name : msg.getArgs().split(" ")) {
-                    switch (name) {
-                        case "bind_max":
-                            s.append(0);
-                            break;
-                        case "readv_ior_max":
-                            s.append(MAX_FRAME_SIZE);
-                            break;
-                        case "readv_iov_max":
-                            s.append(Integer.MAX_VALUE);
-                            break;
-                        case "csname":
-                            s.append("1:ADLER32");
-                            break;
-                        case "version":
-                            s.append("xrootd4j");
-                            break;
-                        default:
-                            s.append(name);
-                            break;
-                    }
-                    s.append('\n');
-                }
-                return new QueryResponse(msg, s.toString());
-
-            case kXR_Qcksum:
-                try {
-                    HashCode hash = com.google.common.io.Files.asByteSource(getFile(msg.getPath()))
-                          .hash(Hashing.adler32());
-                    return new QueryResponse(msg, "ADLER32 " + hash);
-                } catch (FileNotFoundException e) {
-                    throw new XrootdException(kXR_NotFound, e.getMessage());
-                } catch (IOException e) {
-                    throw new XrootdException(kXR_IOError, e.getMessage());
-                }
 
             case kXR_Qopaquf:
                 var query = msg.getArgs();
@@ -435,26 +327,6 @@ public class DataServerHandler extends XrootdRequestHandler {
         }
     }
 
-    @Override
-    protected SetResponse doOnSet(ChannelHandlerContext ctx, SetRequest request)
-          throws XrootdException {
-        /* The xrootd spec states that we should include 80 characters in our log.
-         */
-        final String APPID_PREFIX = "appid ";
-        final int APPID_PREFIX_LENGTH = APPID_PREFIX.length();
-        final int APPID_MSG_LENGTH = 80;
-        String data = request.getData();
-        if (data.startsWith(APPID_PREFIX)) {
-            LOGGER.info(data.substring(APPID_PREFIX_LENGTH,
-                  Math.min(APPID_PREFIX_LENGTH + APPID_MSG_LENGTH, data.length())));
-        }
-        return new SetResponse(request, "");
-    }
-
-    private String stripLeadingAsterix(String s) {
-        return s.startsWith("*") ? s.substring(1) : s;
-    }
-
     private int addOpenFile(RandomAccessFile raf) {
         for (int i = 0; i < _openFiles.size(); i++) {
             if (_openFiles.get(i) == null) {
@@ -483,13 +355,20 @@ public class DataServerHandler extends XrootdRequestHandler {
         _openFiles.set(fd, null);
     }
 
-    private File getFile(String path)
+
+    private NearlineRequest getIORequest(String path)
           throws XrootdException {
 
         var r = pendingRequests.get(path);
         if (r == null) {
             throw new XrootdException(kXR_NotFound, "Request not found: " + path);
         }
+
+        return r;
+    }
+
+    private File getFile(NearlineRequest r)
+          throws XrootdException {
 
         String localPath = null;
         if (r instanceof FlushRequest) {
@@ -501,14 +380,10 @@ public class DataServerHandler extends XrootdRequestHandler {
         }
 
         if (localPath == null) {
-            throw new XrootdException(kXR_ArgInvalid, "Invalid path: " + path);
+            throw new XrootdException(kXR_ArgInvalid, "Invalid request: " + r.getId());
         }
 
-        String normalized = FilenameUtils.normalize(localPath);
-        if (normalized == null) {
-            throw new XrootdException(kXR_ArgInvalid, "Invalid path: " + path);
-        }
-        return new File(normalized);
+        return new File(localPath);
     }
 
     private int getFileStatusFlagsOf(File file) {
@@ -545,7 +420,7 @@ public class DataServerHandler extends XrootdRequestHandler {
     }
 
     private FileStatus statusByPath(String path) throws XrootdException {
-        File file = getFile(path);
+        File file = getFile(getIORequest(path));
         return statusByFile(file);
     }
 
