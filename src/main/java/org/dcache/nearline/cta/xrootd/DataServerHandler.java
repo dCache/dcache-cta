@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (C) 2011-2021 dCache.org <support@dcache.org>
  * <p>
  * This file is part of xrootd4j.
