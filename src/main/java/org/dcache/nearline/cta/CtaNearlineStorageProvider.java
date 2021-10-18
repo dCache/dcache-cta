@@ -54,6 +54,7 @@ public class CtaNearlineStorageProvider implements NearlineStorageProvider {
 
     @Override
     public CtaNearlineStorage createNearlineStorage(String type, String name) {
+        LOGGER.info("Creating new CtaNearlineStorage - type: {}, name: {}", type, name);
         return new CtaNearlineStorage(type, name);
     }
 }
