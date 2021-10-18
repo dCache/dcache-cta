@@ -100,8 +100,21 @@ public class DataServerHandler extends XrootdRequestHandler {
 
     private final ConcurrentMap<String, ? extends NearlineRequest> pendingRequests;
 
-    public DataServerHandler(
+    /**
+     * Driver configured hsm name.
+     */
+    private final String hsmName;
+
+    /**
+     * Driver configured hsm type;
+     */
+    private final String hsmType;
+
+    public DataServerHandler(String type, String name,
           ConcurrentMap<String, ? extends NearlineRequest> pendingRequests) {
+
+        hsmType = type;
+        hsmName = name;
         this.pendingRequests = pendingRequests;
     }
 
@@ -405,9 +418,9 @@ public class DataServerHandler extends XrootdRequestHandler {
                     if (!uriQuery.startsWith(idPrefix)) {
                         throw new XrootdException(kXR_ArgInvalid, "Invalid success uri");
                     }
+                    // validate that id is a long
                     var archiveId = Long.parseLong(uriQuery.substring(idPrefix.length()));
-                    // FIXME: don't do this for restore
-                    var hsmUrl = URI.create("osm://cta?archiveid=" + archiveId);
+                    var hsmUrl = URI.create(hsmType + "://" + hsmName + "?archiveid=" + archiveId);
                     r.completed(Set.of(hsmUrl));
 
                     LOGGER.info("Successful flushing: {} : archive id: {}", requestId, archiveId);

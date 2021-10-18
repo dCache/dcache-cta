@@ -46,8 +46,21 @@ public class DataMover extends AbstractIdleService {
 
     private final ConcurrentMap<String, ? extends NearlineRequest> pendingRequests;
 
-    public DataMover(InetSocketAddress sa,
+    /**
+     * Driver configured hsm name.
+     */
+    private final String hsmName;
+
+    /**
+     * Driver configured hsm type;
+     */
+    private final String hsmType;
+
+    public DataMover(String type, String name, InetSocketAddress sa,
           ConcurrentMap<String, ? extends NearlineRequest> pendingRequests) {
+
+        hsmType = type;
+        hsmName = name;
 
         try {
             this.pendingRequests = pendingRequests;
@@ -126,7 +139,7 @@ public class DataMover extends AbstractIdleService {
             }
 
             pipeline.addLast("chunk-writer", new ChunkedResponseWriteHandler());
-            pipeline.addLast("data-server", new DataServerHandler(pendingRequests));
+            pipeline.addLast("data-server", new DataServerHandler(hsmType, hsmName, pendingRequests));
         }
 
         public final ChannelHandlerFactory createHandlerFactory(String plugin)
