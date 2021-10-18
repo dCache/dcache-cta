@@ -162,12 +162,12 @@ public class DataServerHandler extends XrootdRequestHandler {
 
             RandomAccessFile raf;
             if (msg.isReadWrite() || msg.isNew() || msg.isDelete()) {
-                LOGGER.info("Opening {} for write", file);
+                LOGGER.info("Opening {} for writing", file);
                 raf = new RandomAccessFile(file, "rw")  {
                     @Override
                     public void close() throws IOException {
                         super.close();
-                        LOGGER.info("Restore Complete for {}", r.getId());
+                        LOGGER.info("Restore Complete for {}", file);
                         r.completed(Set.of());
                     }
                 };
@@ -175,7 +175,7 @@ public class DataServerHandler extends XrootdRequestHandler {
                     raf.setLength(0);
                 }
             } else {
-                LOGGER.info("Opening {} for read", file);
+                LOGGER.info("Opening {} for reading.", file);
                 raf = new RandomAccessFile(file, "r");
             }
 
