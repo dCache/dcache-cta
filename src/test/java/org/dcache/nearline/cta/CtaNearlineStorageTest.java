@@ -22,6 +22,7 @@ public class CtaNearlineStorageTest {
 
     private DummyCta cta;
     private Map<String, String> drvConfig;
+    private CtaNearlineStorage driver;
 
     @Before
     public void setUp() throws IOException {
@@ -42,6 +43,9 @@ public class CtaNearlineStorageTest {
     @After
     public void tierDown() {
         cta.shutdown();
+        if (driver != null) {
+            driver.shutdown();
+        }
     }
 
     @Test(expected = NullPointerException.class)
@@ -57,7 +61,7 @@ public class CtaNearlineStorageTest {
     @Test(expected = IllegalArgumentException.class)
     public void testCfgMissingInstance() {
 
-        var driver = new CtaNearlineStorage("aType", "aName");
+        driver = new CtaNearlineStorage("aType", "aName");
 
         drvConfig.remove(CTA_INSTANCE);
         driver.configure(drvConfig);
@@ -66,7 +70,7 @@ public class CtaNearlineStorageTest {
     @Test(expected = IllegalArgumentException.class)
     public void testCfgMissingUser() {
 
-        var driver = new CtaNearlineStorage("aType", "aName");
+        driver = new CtaNearlineStorage("aType", "aName");
 
         drvConfig.remove(CTA_USER);
         driver.configure(drvConfig);
@@ -75,7 +79,7 @@ public class CtaNearlineStorageTest {
     @Test(expected = IllegalArgumentException.class)
     public void testCfgMissingGroup() {
 
-        var driver = new CtaNearlineStorage("aType", "aName");
+        driver = new CtaNearlineStorage("aType", "aName");
         drvConfig.remove(CTA_GROUP);
         driver.configure(drvConfig);
     }
@@ -83,7 +87,7 @@ public class CtaNearlineStorageTest {
     @Test(expected = IllegalArgumentException.class)
     public void testCfgMissingEndpoint() {
 
-        var driver = new CtaNearlineStorage("aType", "aName");
+        driver = new CtaNearlineStorage("aType", "aName");
 
         drvConfig.remove(CTA_ENDPOINT);
         driver.configure(drvConfig);
@@ -92,7 +96,7 @@ public class CtaNearlineStorageTest {
     @Test(expected = IllegalArgumentException.class)
     public void testCfgInvalidEndpoint() {
 
-        var driver = new CtaNearlineStorage("aType", "aName");
+        driver = new CtaNearlineStorage("aType", "aName");
 
         drvConfig.put(CTA_ENDPOINT, "localhost");
         driver.configure(drvConfig);
@@ -101,13 +105,12 @@ public class CtaNearlineStorageTest {
     @Test
     public void testCfgAcceptValid() {
 
-        var driver = new CtaNearlineStorage("aType", "aName");
+        driver = new CtaNearlineStorage("aType", "aName");
         driver.configure(drvConfig);
     }
 
     @Test
     public void testRequestActivationOnSubmit() {
-
 
         var request = mockedRequest();
         var driver = new CtaNearlineStorage("foo", "bar");
@@ -128,7 +131,6 @@ public class CtaNearlineStorageTest {
               .build();
 
         var request = mock(FlushRequest.class);
-
 
         when(request.activate()).thenReturn(Futures.immediateFuture(null));
         when(request.getFileAttributes()).thenReturn(attrs);
