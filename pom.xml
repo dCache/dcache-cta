@@ -11,6 +11,11 @@
 
     <name>dCache Nearline Storage Driver for CTA</name>
 
+    <organization>
+        <name>dCache.org</name>
+        <url>https://dcache.org/</url>
+    </organization>
+
     <properties>
         <version.dcache>6.2.30</version.dcache>
         <java.version>11</java.version>
@@ -19,11 +24,17 @@
 
     <licenses>
         <license>
-            <name>GNU Lesser General Public License 3</name>
-            <url>http://www.gnu.org/licenses/lgpl-3.0.txt</url>
-            <distribution>repo</distribution>
+            <name>GNU Affero General Public License Version 3</name>
+            <url>http://www.gnu.org/licenses/agpl-3.0.txt</url>
+            <distribution>manual</distribution>
         </license>
     </licenses>
+
+    <scm>
+        <connection>scm:git:https://github.com/kofemann/dcache-cta.git</connection>
+        <developerConnection>scm:git:ssh://git@github.com/kofemann/dcache-cta.git</developerConnection>
+        <tag>HEAD</tag>
+    </scm>
 
     <repositories>
         <repository>
