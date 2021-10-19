@@ -43,10 +43,25 @@ public class CtaNearlineStorage implements NearlineStorage {
     protected final String type;
     protected final String name;
 
+    /**
+     * Foatory, that converts dCache requests to corresponding gRPC messages.
+     */
     private RequestsFactory ctaRequestFactory;
+
+    /**
+     * CTA gRPC frontend service.
+     */
     private CtaRpcBlockingStub cta;
 
+    /**
+     * Data mover used to read or write files by CTA.
+     */
     private DataMover dataMover;
+
+    /**
+     * gRPC communication channel.
+     */
+    private ManagedChannel channel;
 
     private final ConcurrentMap<String, NearlineRequest> pendingFlushes = new ConcurrentHashMap<>();
 
@@ -189,7 +204,7 @@ public class CtaNearlineStorage implements NearlineStorage {
         dataMover.startAsync().awaitRunning();
         LOGGER.info("Xroot IO mover started on: {}", dataMover.getLocalSocketAddress());
 
-        ManagedChannel channel = ManagedChannelBuilder
+        channel = ManagedChannelBuilder
               .forAddress(target.getHost(), target.getPort())
               .usePlaintext()
               .build();
@@ -212,6 +227,10 @@ public class CtaNearlineStorage implements NearlineStorage {
     public void shutdown() {
         if (dataMover != null) {
             dataMover.stopAsync().awaitTerminated();
+        }
+
+        if (channel != null) {
+            channel.shutdown();
         }
     }
 }
