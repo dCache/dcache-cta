@@ -100,6 +100,7 @@ public class CtaNearlineStorage implements NearlineStorage {
         for (var r : requests) {
             try {
                 r.activate().get();
+                r.allocate().get();
                 var rr = ctaRequestFactory.valueOf(r);
                 pendingFlushes.put(r.getId().toString(), r);
                 var response = cta.retrieve(rr);
