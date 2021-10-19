@@ -16,7 +16,7 @@ public class CtaNearlineStorageProviderTest {
     @Test
     public void testDescriptionNotNull() {
         CtaNearlineStorageProvider provider = new CtaNearlineStorageProvider();
-        assertNotNull(provider.getDescription(), "Description can be null");
+        assertNotNull("Description can be null", provider.getDescription());
     }
 
     @Test
