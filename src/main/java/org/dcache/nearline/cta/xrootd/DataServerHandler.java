@@ -30,12 +30,14 @@ import static org.dcache.xrootd.protocol.XrootdProtocol.kXR_readable;
 import static org.dcache.xrootd.protocol.XrootdProtocol.kXR_writable;
 import static org.dcache.xrootd.protocol.XrootdProtocol.kXR_xset;
 
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import diskCacheV111.util.CacheException;
 import io.netty.channel.ChannelHandlerContext;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
+import java.lang.ref.Cleaner;
 import java.net.URI;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.FileChannel;
@@ -74,6 +76,15 @@ public class DataServerHandler extends XrootdRequestHandler {
 
     private static final Logger LOGGER =
           LoggerFactory.getLogger(DataServerHandler.class);
+
+    /**
+     * Resource cleaner the fired when object becomes unreachable.
+     */
+    private static final Cleaner CLEANER = Cleaner.create(
+          new ThreadFactoryBuilder()
+                .setNameFormat("Post-restore-ompition-%d")
+                .build()
+    );
 
     /**
      * Maximum frame size of a read or readv reply. Does not include the size of the frame header.
@@ -163,14 +174,12 @@ public class DataServerHandler extends XrootdRequestHandler {
             RandomAccessFile raf;
             if (msg.isReadWrite() || msg.isNew() || msg.isDelete()) {
                 LOGGER.info("Opening {} for writing", file);
-                raf = new RandomAccessFile(file, "rw")  {
-                    @Override
-                    public void close() throws IOException {
-                        super.close();
-                        LOGGER.info("Restore Complete for {}", file);
-                        r.completed(Set.of());
-                    }
-                };
+                raf = new RandomAccessFile(file, "rw");
+                CLEANER.register(raf, () -> {
+                    LOGGER.info("Restore Complete for {}", file);
+                    r.completed(Set.of());
+                });
+
                 if (msg.isDelete()) {
                     raf.setLength(0);
                 }
