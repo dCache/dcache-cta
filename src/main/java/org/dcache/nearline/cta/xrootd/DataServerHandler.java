@@ -82,7 +82,7 @@ public class DataServerHandler extends XrootdRequestHandler {
      */
     private static final Cleaner CLEANER = Cleaner.create(
           new ThreadFactoryBuilder()
-                .setNameFormat("Post-restore-ompition-%d")
+                .setNameFormat("Post-restore-completion-%d")
                 .build()
     );
 
