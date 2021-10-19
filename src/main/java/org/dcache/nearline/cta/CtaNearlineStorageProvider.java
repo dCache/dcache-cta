@@ -15,7 +15,7 @@ public class CtaNearlineStorageProvider implements NearlineStorageProvider {
 
     private final static Logger LOGGER = LoggerFactory.getLogger(CtaNearlineStorageProvider.class);
 
-    private static String VERSION = "<Unknown>";
+    private final static String VERSION;
 
     static {
         /*
@@ -25,17 +25,17 @@ public class CtaNearlineStorageProvider implements NearlineStorageProvider {
         CodeSource cs = pd.getCodeSource();
         URL u = cs.getLocation();
 
+        var v = "<Unknown>";
         try (JarInputStream jis = new JarInputStream(u.openStream())) {
             Manifest m = jis.getManifest();
-
             if (m != null) {
                 Attributes as = m.getMainAttributes();
-                VERSION = as.getValue("version") + " " + as.getValue("build-timestamp");
+                v = as.getValue("version") + " " + as.getValue("build-timestamp");
             }
-
         } catch (IOException e) {
             // bad luck
         }
+        VERSION = v;
     }
 
     public CtaNearlineStorageProvider() {
