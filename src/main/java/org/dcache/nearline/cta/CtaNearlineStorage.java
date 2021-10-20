@@ -43,6 +43,22 @@ public class CtaNearlineStorage implements NearlineStorage {
     protected final String type;
     protected final String name;
 
+
+    /**
+     * User name associated with the requests on the CTA side.
+     */
+    private String ctaUser;
+
+    /**
+     * Group name associated with the request on the CTA side.
+     */
+    private String ctaGroup;
+
+    /**
+     * dCache instance identifier within CTA
+     */
+    private String instanceName;
+
     /**
      * Foatory, that converts dCache requests to corresponding gRPC messages.
      */
@@ -62,6 +78,16 @@ public class CtaNearlineStorage implements NearlineStorage {
      * gRPC communication channel.
      */
     private ManagedChannel channel;
+
+    /**
+     * Socket address to for IO by CTA.
+     */
+    private InetSocketAddress ioSocketAddress;
+
+    /**
+     * CTA frontend.
+     */
+    private HostAndPort ctaEndpoint;
 
     private final ConcurrentMap<String, NearlineRequest> pendingFlushes = new ConcurrentHashMap<>();
 
@@ -185,8 +211,12 @@ public class CtaNearlineStorage implements NearlineStorage {
         checkArgument(user != null, "CTA user is not set.");
         checkArgument(group != null, "CTA group is not set.");
 
-        HostAndPort target = HostAndPort.fromString(endpoint);
-        checkArgument(target.hasPort(), "Port is not provided for CTA frontend");
+        ctaEndpoint = HostAndPort.fromString(endpoint);
+        checkArgument(ctaEndpoint.hasPort(), "Port is not provided for CTA frontend");
+
+        ctaUser = user;
+        ctaGroup = group;
+        instanceName = instance;
 
         // Optional options
         String localEndpoint = properties.get(IO_ENDPOINT);
@@ -199,13 +229,22 @@ public class CtaNearlineStorage implements NearlineStorage {
             }
         }
 
-        var sa = new InetSocketAddress(localEndpoint, Integer.parseInt(localPort));
-        dataMover = new DataMover(type, name, sa, pendingFlushes);
+        ioSocketAddress = new InetSocketAddress(localEndpoint, Integer.parseInt(localPort));
+    }
+
+    @Override
+    public void start() {
+
+        dataMover = new DataMover(type, name, ioSocketAddress, pendingFlushes);
         dataMover.startAsync().awaitRunning();
-        LOGGER.info("Xroot IO mover started on: {}", dataMover.getLocalSocketAddress());
+
+        var url = ioSocketAddress.getAddress().getCanonicalHostName() + ":"
+              + dataMover.getLocalSocketAddress().getPort();
+
+        LOGGER.info("Xroot IO mover started on: {}", url);
 
         channel = ManagedChannelBuilder
-              .forAddress(target.getHost(), target.getPort())
+              .forAddress(ctaEndpoint.getHost(), ctaEndpoint.getPort())
               .usePlaintext()
               .build();
         cta = CtaRpcGrpc.newBlockingStub(channel);
@@ -214,9 +253,9 @@ public class CtaNearlineStorage implements NearlineStorage {
         LOGGER.info("Connected to CTA version {} : {}", version.getCtaVersion(),
               version.getXrootdSsiProtobufInterfaceVersion());
 
-        var url = localEndpoint + ":" + dataMover.getLocalSocketAddress().getPort();
-        ctaRequestFactory = new RequestsFactory(instance, user, group, url);
+        ctaRequestFactory = new RequestsFactory(instanceName, ctaUser, ctaGroup, url);
     }
+
 
     /**
      * Cancels all requests and initiates a shutdown of the nearline storage interface.

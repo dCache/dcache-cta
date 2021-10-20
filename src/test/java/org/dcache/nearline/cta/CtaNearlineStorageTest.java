@@ -107,6 +107,7 @@ public class CtaNearlineStorageTest {
 
         driver = new CtaNearlineStorage("aType", "aName");
         driver.configure(drvConfig);
+        driver.start();
     }
 
     @Test
@@ -115,6 +116,7 @@ public class CtaNearlineStorageTest {
         var request = mockedRequest();
         driver = new CtaNearlineStorage("foo", "bar");
         driver.configure(drvConfig);
+        driver.start();
 
         driver.flush(Set.of(request));
 
@@ -126,10 +128,12 @@ public class CtaNearlineStorageTest {
 
         driver = new CtaNearlineStorage("aType", "aName");
         driver.configure(drvConfig);
+        driver.start();
         driver.shutdown();
 
         driver = new CtaNearlineStorage("aType", "aName");
         driver.configure(drvConfig);
+        driver.start();
         driver.shutdown();
     }
 
