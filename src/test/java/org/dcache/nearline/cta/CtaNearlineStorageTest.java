@@ -1,7 +1,6 @@
 package org.dcache.nearline.cta;
 
 import static org.dcache.nearline.cta.CtaNearlineStorage.*;
-import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -35,7 +34,8 @@ public class CtaNearlineStorageTest {
                     CTA_USER, "foo",
                     CTA_GROUP, "bar",
                     CTA_INSTANCE, "foobar",
-                    CTA_ENDPOINT, cta.getConnectString()
+                    CTA_ENDPOINT, cta.getConnectString(),
+                    IO_PORT, "9991"
               )
         );
     }
@@ -120,6 +120,19 @@ public class CtaNearlineStorageTest {
 
         verify(request).activate();
     }
+
+    @Test
+    public void testStartAfterShutdown() {
+
+        driver = new CtaNearlineStorage("aType", "aName");
+        driver.configure(drvConfig);
+        driver.shutdown();
+
+        driver = new CtaNearlineStorage("aType", "aName");
+        driver.configure(drvConfig);
+        driver.shutdown();
+    }
+
 
     private FlushRequest mockedRequest() {
 
