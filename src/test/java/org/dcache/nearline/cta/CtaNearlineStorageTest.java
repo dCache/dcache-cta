@@ -6,12 +6,15 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.google.common.util.concurrent.Futures;
+import diskCacheV111.vehicles.GenericStorageInfo;
 import java.io.IOException;
+import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import org.dcache.pool.nearline.spi.FlushRequest;
+import org.dcache.pool.nearline.spi.StageRequest;
 import org.dcache.vehicles.FileAttributes;
 import org.junit.After;
 import org.junit.Before;
@@ -111,9 +114,9 @@ public class CtaNearlineStorageTest {
     }
 
     @Test
-    public void testRequestActivationOnSubmit() {
+    public void testFlushRequestActivationOnSubmit() {
 
-        var request = mockedRequest();
+        var request = mockedFlushRequest();
         driver = new CtaNearlineStorage("foo", "bar");
         driver.configure(drvConfig);
         driver.start();
@@ -121,6 +124,32 @@ public class CtaNearlineStorageTest {
         driver.flush(Set.of(request));
 
         verify(request).activate();
+    }
+
+    @Test
+    public void testStageRequestActivationOnSubmit() {
+
+        var request = mockedStageRequest();
+        driver = new CtaNearlineStorage("foo", "bar");
+        driver.configure(drvConfig);
+        driver.start();
+
+        driver.stage(Set.of(request));
+
+        verify(request).activate();
+    }
+
+    @Test
+    public void testSpaceAllocationOnSubmit() {
+
+        var request = mockedStageRequest();
+        driver = new CtaNearlineStorage("foo", "bar");
+        driver.configure(drvConfig);
+        driver.start();
+
+        driver.stage(Set.of(request));
+
+        verify(request).allocate();
     }
 
     @Test
@@ -138,7 +167,7 @@ public class CtaNearlineStorageTest {
     }
 
 
-    private FlushRequest mockedRequest() {
+    private FlushRequest mockedFlushRequest() {
 
         var attrs = FileAttributes.of()
               .size(9876543210L)
@@ -155,4 +184,28 @@ public class CtaNearlineStorageTest {
 
         return request;
     }
+
+    private StageRequest mockedStageRequest() {
+
+        var storageInfo = GenericStorageInfo.valueOf("a:b@z", "*");
+        storageInfo.addLocation(URI.create("cta://cta?archiveid=9876543210"));
+
+        var attrs = FileAttributes.of()
+              .size(9876543210L)
+              .storageClass(storageInfo.getStorageClass())
+              .hsm(storageInfo.getHsm())
+              .storageInfo(storageInfo)
+              .pnfsId("0000C9B4E3768770452E8B1B8E0232584872")
+              .build();
+
+        var request = mock(StageRequest.class);
+
+        when(request.activate()).thenReturn(Futures.immediateFuture(null));
+        when(request.allocate()).thenReturn(Futures.immediateFuture(null));
+        when(request.getFileAttributes()).thenReturn(attrs);
+        when(request.getId()).thenReturn(UUID.randomUUID());
+
+        return request;
+    }
+
 }

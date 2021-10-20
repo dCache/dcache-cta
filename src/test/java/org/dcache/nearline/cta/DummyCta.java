@@ -66,7 +66,13 @@ public class DummyCta {
         @Override
         public void retrieve(RetrieveRequest request,
               StreamObserver<RetrieveResponse> responseObserver) {
-            super.retrieve(request, responseObserver);
+
+            var response = RetrieveResponse.newBuilder()
+                  .setReqId("RetrieveRequest-" + ThreadLocalRandom.current().nextInt())
+                  .build();
+
+            responseObserver.onNext(response);
+            responseObserver.onCompleted();
         }
 
         @Override
