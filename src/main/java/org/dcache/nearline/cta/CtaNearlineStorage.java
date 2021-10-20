@@ -238,7 +238,7 @@ public class CtaNearlineStorage implements NearlineStorage {
         dataMover = new DataMover(type, name, ioSocketAddress, pendingFlushes);
         dataMover.startAsync().awaitRunning();
 
-        var url = ioSocketAddress.getAddress().getCanonicalHostName() + ":"
+        var url = ioSocketAddress.getAddress().getHostAddress() + ":"
               + dataMover.getLocalSocketAddress().getPort();
 
         LOGGER.info("Xroot IO mover started on: {}", url);
