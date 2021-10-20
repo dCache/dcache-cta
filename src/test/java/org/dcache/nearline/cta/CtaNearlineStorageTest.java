@@ -113,7 +113,7 @@ public class CtaNearlineStorageTest {
     public void testRequestActivationOnSubmit() {
 
         var request = mockedRequest();
-        var driver = new CtaNearlineStorage("foo", "bar");
+        driver = new CtaNearlineStorage("foo", "bar");
         driver.configure(drvConfig);
 
         driver.flush(Set.of(request));
