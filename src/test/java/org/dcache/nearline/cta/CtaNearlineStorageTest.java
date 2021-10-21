@@ -1,6 +1,7 @@
 package org.dcache.nearline.cta;
 
 import static org.dcache.nearline.cta.CtaNearlineStorage.*;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -150,6 +151,51 @@ public class CtaNearlineStorageTest {
         driver.stage(Set.of(request));
 
         verify(request).allocate();
+    }
+
+    @Test
+    public void testFlushRequestFailActivation() {
+
+        var request = mockedFlushRequest();
+        when(request.activate()).thenReturn(Futures.immediateFailedFuture(new IOException()));
+
+        driver = new CtaNearlineStorage("foo", "bar");
+        driver.configure(drvConfig);
+        driver.start();
+
+        driver.flush(Set.of(request));
+
+        verify(request).failed(any());
+    }
+
+    @Test
+    public void testStageRequestFailActivation() {
+
+        var request = mockedStageRequest();
+        when(request.activate()).thenReturn(Futures.immediateFailedFuture(new IOException()));
+
+        driver = new CtaNearlineStorage("foo", "bar");
+        driver.configure(drvConfig);
+        driver.start();
+
+        driver.stage(Set.of(request));
+
+        verify(request).failed(any());
+    }
+
+    @Test
+    public void testStageRequestFailAllocation() {
+
+        var request = mockedStageRequest();
+        when(request.allocate()).thenReturn(Futures.immediateFailedFuture(new IOException()));
+
+        driver = new CtaNearlineStorage("foo", "bar");
+        driver.configure(drvConfig);
+        driver.start();
+
+        driver.stage(Set.of(request));
+
+        verify(request).failed(any());
     }
 
     @Test
