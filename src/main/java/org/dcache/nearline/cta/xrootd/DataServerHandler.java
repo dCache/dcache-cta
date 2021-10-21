@@ -31,6 +31,7 @@ import static org.dcache.xrootd.protocol.XrootdProtocol.kXR_writable;
 import static org.dcache.xrootd.protocol.XrootdProtocol.kXR_xset;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import diskCacheV111.util.Adler32;
 import diskCacheV111.util.CacheException;
 import io.netty.channel.ChannelHandlerContext;
 import java.io.File;
@@ -39,6 +40,7 @@ import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.lang.ref.Cleaner;
 import java.net.URI;
+import java.nio.ByteBuffer;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
@@ -47,9 +49,12 @@ import java.util.Base64;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ForkJoinPool;
 import org.dcache.pool.nearline.spi.FlushRequest;
 import org.dcache.pool.nearline.spi.NearlineRequest;
 import org.dcache.pool.nearline.spi.StageRequest;
+import org.dcache.util.Checksum;
+import org.dcache.util.ChecksumType;
 import org.dcache.xrootd.core.XrootdException;
 import org.dcache.xrootd.core.XrootdRequestHandler;
 import org.dcache.xrootd.protocol.messages.CloseRequest;
@@ -177,7 +182,16 @@ public class DataServerHandler extends XrootdRequestHandler {
                 raf = new RandomAccessFile(file, "rw");
                 CLEANER.register(raf, () -> {
                     LOGGER.info("Restore Complete for {}", file);
-                    r.completed(Set.of());
+                    ForkJoinPool.commonPool().execute(() -> {
+                        try {
+                            Checksum checksum = calculateChecksum(file);
+                            r.completed(Set.of(checksum));
+                        } catch (IOException e) {
+                            LOGGER.error("Post-restore checksum calculation of {} failed: {}", file,
+                                  e.getMessage());
+                            r.failed(e);
+                        }
+                    });
                 });
 
                 if (msg.isDelete()) {
@@ -443,6 +457,26 @@ public class DataServerHandler extends XrootdRequestHandler {
                   System.currentTimeMillis() / 1000);
         } catch (IOException e) {
             throw new XrootdException(kXR_IOError, e.getMessage());
+        }
+    }
+
+    private static Checksum calculateChecksum(File file) throws IOException {
+
+        ByteBuffer bb = ByteBuffer.allocate(8192);
+        var adler = new Adler32();
+
+        try (FileChannel fc = FileChannel.open(file.toPath())) {
+            while (true) {
+                bb.clear();
+                int n = fc.read(bb);
+                if (n < 0) {
+                    break;
+                }
+                bb.flip();
+                adler.update(bb);
+            }
+
+            return new Checksum(ChecksumType.ADLER32, adler.digest());
         }
     }
 }
