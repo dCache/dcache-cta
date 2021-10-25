@@ -112,12 +112,6 @@ public class DataMover extends AbstractIdleService implements CtaTransportProvid
         return "Xrootd CTA data mover";
     }
 
-    public InetSocketAddress getLocalSocketAddress() {
-        Preconditions.checkState(cf != null, "Service is not started");
-        Preconditions.checkState(cf.isDone(), "Service is not bound yet.");
-        return (InetSocketAddress) cf.channel().localAddress();
-    }
-
     private class XrootChallenInitializer extends ChannelInitializer<Channel> {
 
         public final List<ChannelHandlerFactory> channelHandlerFactories;
@@ -178,6 +172,10 @@ public class DataMover extends AbstractIdleService implements CtaTransportProvid
 
     @Override
     public Transport getTransport(String id) {
+
+        Preconditions.checkState(cf != null, "Service is not started");
+        Preconditions.checkState(cf.isDone(), "Service is not bound yet.");
+
         // REVISIT:
         String reporterUrl = "eosQuery://" + url + "/success/" + id;
         String errorReporter = "eosQuery://" + url + "/error/" + id + "?error=";
