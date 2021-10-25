@@ -5,8 +5,10 @@ import static com.google.common.base.Preconditions.checkArgument;
 import com.google.common.base.Throwables;
 import com.google.common.net.HostAndPort;
 import com.google.protobuf.Empty;
+import cta.admin.CtaAdmin.Version;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
+import io.grpc.stub.StreamObserver;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
@@ -17,8 +19,10 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
+import org.dcache.cta.rpc.ArchiveResponse;
 import org.dcache.cta.rpc.CtaRpcGrpc;
-import org.dcache.cta.rpc.CtaRpcGrpc.CtaRpcBlockingStub;
+import org.dcache.cta.rpc.CtaRpcGrpc.CtaRpcStub;
+import org.dcache.cta.rpc.RetrieveResponse;
 import org.dcache.nearline.cta.xrootd.DataMover;
 import org.dcache.pool.nearline.spi.FlushRequest;
 import org.dcache.pool.nearline.spi.NearlineRequest;
@@ -67,7 +71,7 @@ public class CtaNearlineStorage implements NearlineStorage {
     /**
      * CTA gRPC frontend service.
      */
-    private CtaRpcBlockingStub cta;
+    private CtaRpcStub cta;
 
     /**
      * Data mover used to read or write files by CTA.
@@ -111,27 +115,43 @@ public class CtaNearlineStorage implements NearlineStorage {
     @Override
     public void flush(Iterable<FlushRequest> requests) {
         for (var r : requests) {
+
             try {
                 r.activate().get();
-                var ar = ctaRequestFactory.valueOf(r);
-                var id = r.getFileAttributes().getPnfsId().toString();
-                pendingRequests.put(id, r);
-                var response = cta.archive(ar);
-
-                LOGGER.info("{} : {} : archive id {}, request: {}",
-                      r.getId(),
-                      r.getFileAttributes().getPnfsId(),
-                      response.getFid(),
-                      response.getReqId()
-                );
-
             } catch (ExecutionException | InterruptedException e) {
                 Throwable t = Throwables.getRootCause(e);
-                LOGGER.error("Failed to submit flush request: {}", t.getMessage());
-                pendingRequests.remove(r.getId().toString());
+                LOGGER.error("Failed to activate flush request: {}", t.getMessage());
                 r.failed(e);
             }
 
+            var ar = ctaRequestFactory.valueOf(r);
+            var id = r.getFileAttributes().getPnfsId().toString();
+
+            cta.archive(ar, new StreamObserver<>() {
+
+                @Override
+                public void onNext(ArchiveResponse response) {
+                    LOGGER.info("{} : {} : archive id {}, request: {}",
+                          r.getId(),
+                          r.getFileAttributes().getPnfsId(),
+                          response.getFid(),
+                          response.getReqId()
+                    );
+                }
+
+                @Override
+                public void onError(Throwable t) {
+                    LOGGER.error("Failed to submit archive request {}", t.getMessage());
+                    Exception e =
+                          t instanceof Exception ? Exception.class.cast(t) : new Exception(t);
+                    r.failed(e);
+                }
+
+                @Override
+                public void onCompleted() {
+                    pendingRequests.put(id, r);
+                }
+            });
         }
     }
 
@@ -143,26 +163,43 @@ public class CtaNearlineStorage implements NearlineStorage {
     @Override
     public void stage(Iterable<StageRequest> requests) {
         for (var r : requests) {
+
             try {
                 r.activate().get();
                 r.allocate().get();
-                var rr = ctaRequestFactory.valueOf(r);
-                var id = r.getFileAttributes().getPnfsId().toString();
-                pendingRequests.put(id, r);
-                var response = cta.retrieve(rr);
-
-                LOGGER.info("{} : {} : request: {}",
-                      r.getId(),
-                      r.getFileAttributes().getPnfsId(),
-                      response.getReqId()
-                );
-
             } catch (ExecutionException | InterruptedException e) {
                 Throwable t = Throwables.getRootCause(e);
-                LOGGER.error("Failed to submit retrieve request: {}", t.getMessage());
-                pendingRequests.remove(r.getId().toString());
+                LOGGER.error("Failed to activate/allocate space for retrieve request: {}",
+                      t.getMessage());
                 r.failed(e);
             }
+
+            var rr = ctaRequestFactory.valueOf(r);
+            var id = r.getFileAttributes().getPnfsId().toString();
+
+            cta.retrieve(rr, new StreamObserver<>() {
+                @Override
+                public void onNext(RetrieveResponse response) {
+                    LOGGER.info("{} : {} : request: {}",
+                          r.getId(),
+                          r.getFileAttributes().getPnfsId(),
+                          response.getReqId()
+                    );
+                }
+
+                @Override
+                public void onError(Throwable t) {
+                    LOGGER.error("Failed to submit stage request {}", t.getMessage());
+                    Exception e =
+                          t instanceof Exception ? Exception.class.cast(t) : new Exception(t);
+                    r.failed(e);
+                }
+
+                @Override
+                public void onCompleted() {
+                    pendingRequests.put(id, r);
+                }
+            });
         }
     }
 
@@ -176,8 +213,29 @@ public class CtaNearlineStorage implements NearlineStorage {
 
         for (var r : requests) {
             var deleteRequest = ctaRequestFactory.valueOf(r);
-            var reply = cta.delete(deleteRequest);
-            r.completed(null);
+            cta.delete(deleteRequest, new StreamObserver<>() {
+                @Override
+                public void onNext(Empty value) {
+                    LOGGER.info("Delete request {} submitted {}",
+                          r.getId(),
+                          r.getUri()
+                    );
+                    r.completed(null);
+                }
+
+                @Override
+                public void onError(Throwable t) {
+                    LOGGER.error("Failed to submit stage request {}", t.getMessage());
+                    Exception e =
+                          t instanceof Exception ? Exception.class.cast(t) : new Exception(t);
+                    r.failed(e);
+                }
+
+                @Override
+                public void onCompleted() {
+
+                }
+            });
         }
     }
 
@@ -247,11 +305,25 @@ public class CtaNearlineStorage implements NearlineStorage {
               .forAddress(ctaEndpoint.getHost(), ctaEndpoint.getPort())
               .usePlaintext()
               .build();
-        cta = CtaRpcGrpc.newBlockingStub(channel);
+        cta = CtaRpcGrpc.newStub(channel);
 
-        var version = cta.version(Empty.newBuilder().build());
-        LOGGER.info("Connected to CTA version {} : {}", version.getCtaVersion(),
-              version.getXrootdSsiProtobufInterfaceVersion());
+        cta.version(Empty.newBuilder().build(), new StreamObserver<>() {
+            @Override
+            public void onNext(Version version) {
+                LOGGER.info("Connected to CTA version {} : {}", version.getCtaVersion(),
+                      version.getXrootdSsiProtobufInterfaceVersion());
+            }
+
+            @Override
+            public void onError(Throwable t) {
+                LOGGER.error("Failed to get CTA version {}", t.getMessage());
+            }
+
+            @Override
+            public void onCompleted() {
+
+            }
+        });
 
         ctaRequestFactory = new RequestsFactory(instanceName, ctaUser, ctaGroup, dataMover);
     }
