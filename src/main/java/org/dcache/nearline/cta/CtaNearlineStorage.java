@@ -89,7 +89,10 @@ public class CtaNearlineStorage implements NearlineStorage {
      */
     private HostAndPort ctaEndpoint;
 
-    private final ConcurrentMap<String, NearlineRequest> pendingFlushes = new ConcurrentHashMap<>();
+    /**
+     * Requests submitted to CTA.
+     */
+    private final ConcurrentMap<String, NearlineRequest> pendingRequests = new ConcurrentHashMap<>();
 
     public CtaNearlineStorage(String type, String name) {
 
@@ -112,7 +115,7 @@ public class CtaNearlineStorage implements NearlineStorage {
                 r.activate().get();
                 var ar = ctaRequestFactory.valueOf(r);
                 var id = r.getFileAttributes().getPnfsId().toString();
-                pendingFlushes.put(id, r);
+                pendingRequests.put(id, r);
                 var response = cta.archive(ar);
 
                 LOGGER.info("{} : {} : archive id {}, request: {}",
@@ -125,7 +128,7 @@ public class CtaNearlineStorage implements NearlineStorage {
             } catch (ExecutionException | InterruptedException e) {
                 Throwable t = Throwables.getRootCause(e);
                 LOGGER.error("Failed to submit flush request: {}", t.getMessage());
-                pendingFlushes.remove(r.getId().toString());
+                pendingRequests.remove(r.getId().toString());
                 r.failed(e);
             }
 
@@ -145,7 +148,7 @@ public class CtaNearlineStorage implements NearlineStorage {
                 r.allocate().get();
                 var rr = ctaRequestFactory.valueOf(r);
                 var id = r.getFileAttributes().getPnfsId().toString();
-                pendingFlushes.put(id, r);
+                pendingRequests.put(id, r);
                 var response = cta.retrieve(rr);
 
                 LOGGER.info("{} : {} : request: {}",
@@ -157,7 +160,7 @@ public class CtaNearlineStorage implements NearlineStorage {
             } catch (ExecutionException | InterruptedException e) {
                 Throwable t = Throwables.getRootCause(e);
                 LOGGER.error("Failed to submit retrieve request: {}", t.getMessage());
-                pendingFlushes.remove(r.getId().toString());
+                pendingRequests.remove(r.getId().toString());
                 r.failed(e);
             }
         }
@@ -237,7 +240,7 @@ public class CtaNearlineStorage implements NearlineStorage {
     @Override
     public void start() {
 
-        dataMover = new DataMover(type, name, ioSocketAddress, pendingFlushes);
+        dataMover = new DataMover(type, name, ioSocketAddress, pendingRequests);
         dataMover.startAsync().awaitRunning();
 
         var url = ioSocketAddress.getAddress().getHostAddress() + ":"
