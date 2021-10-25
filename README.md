@@ -68,6 +68,15 @@ collocation_hint    |
 > NOTE: dCache-CTA driver doesn't preserve file's ownership, thus values of `uid` and `gid` fields
 > contain arbitrary values.
 
+## dCache pool configuration
+
+As CTA has its own scheduler and flush/restore queue the dCache pools should be configured to
+submit as much request as possible. Thus grouping and collecting request on the pool side should
+be disabled:
+
+```
+queue define class -expire=0 -pending=0 -total=0 -open <hsmType> *@<hsmType>
+```
 
 ### The available configuration options:
 
