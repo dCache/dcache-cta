@@ -34,6 +34,40 @@ example:
          -cta-frontend-addr=cta-forntend-host:17017 \
          -io-endpoint=a.b.c.d -io-port=1094
 
+The dCache files stored in CTA will have hsm uri in form
+```
+<hsmType>://<hsmName>/<pnfsid>?arichiveid=<id>
+```
+Where `id` represents the CTA internal `archiveId`
+
+for example:
+```
+osm://cta/00001D43C0C086CA459298C634D67F68AB6B?archiveid=8402
+```
+
+In the CTA catalog the dCache's `pnfsid`s are referenced as `disk_file_id` field:
+
+```
+db => select * from archive_file where disk_file_id = '00001D43C0C086CA459298C634D67F68AB6B';
+-[ RECORD 1 ]-------+-------------------------------------
+archive_file_id     | 8402
+disk_instance_name  | instanceA
+disk_file_id        | 00001D43C0C086CA459298C634D67F68AB6B
+disk_file_uid       | 1
+disk_file_gid       | 1
+size_in_bytes       | 10482
+checksum_blob       | \x0a08080112043309f498
+checksum_adler32    | 2566129971
+storage_class_id    | 81
+creation_time       | 1635150624
+reconciliation_time | 1635150624
+is_deleted          | 0
+collocation_hint    |
+```
+
+> NOTE: dCache-CTA driver doesn't preserve file's ownership, thus values of `uid` and `gid` fields
+> contain arbitrary values.
+
 
 ### The available configuration options:
 

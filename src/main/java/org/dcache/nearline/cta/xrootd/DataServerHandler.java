@@ -335,7 +335,8 @@ public class DataServerHandler extends XrootdRequestHandler {
                     }
                     // validate that id is a long
                     var archiveId = Long.parseLong(uriQuery.substring(idPrefix.length()));
-                    var hsmUrl = URI.create(hsmType + "://" + hsmName + "?archiveid=" + archiveId);
+                    var id = getPnfsId(r);
+                    var hsmUrl = URI.create(hsmType + "://" + hsmName + "/" + id + "?archiveid=" + archiveId);
                     r.completed(Set.of(hsmUrl));
 
                     LOGGER.info("Successful flushing: {} : archive id: {}", requestId, archiveId);
@@ -478,5 +479,17 @@ public class DataServerHandler extends XrootdRequestHandler {
 
             return new Checksum(ChecksumType.ADLER32, adler.digest());
         }
+    }
+
+    private String getPnfsId(NearlineRequest<?> request) {
+
+        if (request instanceof StageRequest) {
+            return ((StageRequest) request).getFileAttributes().getPnfsId().toString();
+        } else if (request instanceof FlushRequest) {
+            return ((FlushRequest) request).getFileAttributes().getPnfsId().toString();
+        } else {
+            throw new IllegalArgumentException("Request must be StageRequest or FlushRequest");
+        }
+
     }
 }

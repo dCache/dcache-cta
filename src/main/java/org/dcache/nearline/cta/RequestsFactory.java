@@ -13,7 +13,6 @@ import org.dcache.cta.rpc.RetrieveRequest;
 import org.dcache.namespace.FileAttribute;
 import org.dcache.pool.nearline.spi.FlushRequest;
 import org.dcache.cta.rpc.ArchiveRequest;
-import org.dcache.pool.nearline.spi.NearlineRequest;
 import org.dcache.pool.nearline.spi.RemoveRequest;
 import org.dcache.pool.nearline.spi.StageRequest;
 import org.dcache.util.ChecksumType;
@@ -68,7 +67,8 @@ public class RequestsFactory {
 
         FileAttributes dcacheFileAttrs = request.getFileAttributes();
 
-        Transport transport = getTransport(request);
+        var id = dcacheFileAttrs.getPnfsId().toString();
+        Transport transport = getTransport(id);
 
         var checksumBuilder = CtaCommon.ChecksumBlob.newBuilder();
         if (dcacheFileAttrs.isDefined(FileAttribute.CHECKSUM)) {
@@ -118,13 +118,13 @@ public class RequestsFactory {
         var uri = request.getUri();
         File asPath = new File(uri.getPath());
 
-        String pnfsid = asPath.getParentFile().getName();
+        var id = asPath.getParentFile().getName();
         long archiveId = Long.parseLong(asPath.getName());
 
-        var transport = getTransport(request);
+        var transport = getTransport(id);
 
         var ctaFileInfo = FileInfo.newBuilder()
-              .setFid(pnfsid)
+              .setFid(id)
               .build();
 
         return DeleteRequest.newBuilder()
@@ -140,12 +140,13 @@ public class RequestsFactory {
 
         FileAttributes dcacheFileAttrs = request.getFileAttributes();
 
-        // we expect uri in form: cta://cta?archiveid=xxxx
+        // we expect uri in form: cta://cta/pnfsid/?archiveid=xxxx
 
         var uri = dcacheFileAttrs.getStorageInfo().locations().get(0);
+        var id = dcacheFileAttrs.getPnfsId().toString();
         long archiveId = Long.parseLong(uri.getQuery().substring("archiveid=".length()));
 
-        var transport = getTransport(request);
+        var transport = getTransport(id);
 
         var ctaFileInfo = FileInfo.newBuilder()
               .setSize(dcacheFileAttrs.getSize())
@@ -162,13 +163,13 @@ public class RequestsFactory {
               .build();
     }
 
-    private Transport getTransport(NearlineRequest request) {
+    private Transport getTransport(String id) {
         // REVISIT:
-        String reporterUrl = "eosQuery://" + url + "/success/" + request.getId();
-        String errorReporter = "eosQuery://" + url + "/error/" + request.getId() + "?error=";
+        String reporterUrl = "eosQuery://" + url + "/success/" + id;
+        String errorReporter = "eosQuery://" + url + "/error/" + id + "?error=";
 
         return Transport.newBuilder()
-              .setDstUrl("root://" + url + "/" + request.getId())
+              .setDstUrl("root://" + url + "/" + id)
               .setErrorReportUrl(errorReporter)
               .setReportUrl(reporterUrl)
               .build();
