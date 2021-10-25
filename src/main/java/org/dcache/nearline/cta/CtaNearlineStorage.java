@@ -243,11 +243,6 @@ public class CtaNearlineStorage implements NearlineStorage {
         dataMover = new DataMover(type, name, ioSocketAddress, pendingRequests);
         dataMover.startAsync().awaitRunning();
 
-        var url = ioSocketAddress.getAddress().getHostAddress() + ":"
-              + dataMover.getLocalSocketAddress().getPort();
-
-        LOGGER.info("Xroot IO mover started on: {}", url);
-
         channel = ManagedChannelBuilder
               .forAddress(ctaEndpoint.getHost(), ctaEndpoint.getPort())
               .usePlaintext()
@@ -258,7 +253,7 @@ public class CtaNearlineStorage implements NearlineStorage {
         LOGGER.info("Connected to CTA version {} : {}", version.getCtaVersion(),
               version.getXrootdSsiProtobufInterfaceVersion());
 
-        ctaRequestFactory = new RequestsFactory(instanceName, ctaUser, ctaGroup, url);
+        ctaRequestFactory = new RequestsFactory(instanceName, ctaUser, ctaGroup, dataMover);
     }
 
 

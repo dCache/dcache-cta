@@ -31,23 +31,23 @@ public class RequestsFactory {
     private final CtaEos.Client client;
 
     /**
-     * URI used for IO transport. The final URI sent to CTA constructed as
-     * &lt;uri&gt;/&lt;pnfsid&gt;
+     * {@link CtaTransportProvider} used to generate IO, error and success report urls.
      */
-    private final String url;
+    private final CtaTransportProvider transportProvider;
 
     /**
      * @param service
-     * @param user    user name associated with the requests on the CTA side.
-     * @param group   group name associated with the request on the CTA side.
-     * @param url     URI used for IO transport.
+     * @param user              user name associated with the requests on the CTA side.
+     * @param group             group name associated with the request on the CTA side.
+     * @param transportProvider transportprovider to generate IO, error and success report urls.
      */
-    public RequestsFactory(String service, String user, String group, String url) {
+    public RequestsFactory(String service, String user, String group,
+          CtaTransportProvider transportProvider) {
 
         Objects.requireNonNull(service, "Service name is Null");
         Objects.requireNonNull(user, "User name is Null");
         Objects.requireNonNull(group, "Group name is Null");
-        Objects.requireNonNull(url, "IO url is Null");
+        Objects.requireNonNull(transportProvider, "Transport provider  url is Null");
 
         instance = CtaCommon.Service.newBuilder()
               .setName(service)
@@ -60,7 +60,7 @@ public class RequestsFactory {
                     .build())
               .build();
 
-        this.url = url;
+        this.transportProvider = transportProvider;
     }
 
     public ArchiveRequest valueOf(FlushRequest request) {
@@ -68,7 +68,7 @@ public class RequestsFactory {
         FileAttributes dcacheFileAttrs = request.getFileAttributes();
 
         var id = dcacheFileAttrs.getPnfsId().toString();
-        Transport transport = getTransport(id);
+        Transport transport = transportProvider.getTransport(id);
 
         var checksumBuilder = CtaCommon.ChecksumBlob.newBuilder();
         if (dcacheFileAttrs.isDefined(FileAttribute.CHECKSUM)) {
@@ -121,7 +121,7 @@ public class RequestsFactory {
         var id = asPath.getParentFile().getName();
         long archiveId = Long.parseLong(asPath.getName());
 
-        var transport = getTransport(id);
+        var transport = transportProvider.getTransport(id);
 
         var ctaFileInfo = FileInfo.newBuilder()
               .setFid(id)
@@ -146,7 +146,7 @@ public class RequestsFactory {
         var id = dcacheFileAttrs.getPnfsId().toString();
         long archiveId = Long.parseLong(uri.getQuery().substring("archiveid=".length()));
 
-        var transport = getTransport(id);
+        var transport = transportProvider.getTransport(id);
 
         var ctaFileInfo = FileInfo.newBuilder()
               .setSize(dcacheFileAttrs.getSize())
@@ -163,15 +163,4 @@ public class RequestsFactory {
               .build();
     }
 
-    private Transport getTransport(String id) {
-        // REVISIT:
-        String reporterUrl = "eosQuery://" + url + "/success/" + id;
-        String errorReporter = "eosQuery://" + url + "/error/" + id + "?error=";
-
-        return Transport.newBuilder()
-              .setDstUrl("root://" + url + "/" + id)
-              .setErrorReportUrl(errorReporter)
-              .setReportUrl(reporterUrl)
-              .build();
-    }
 }

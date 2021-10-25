@@ -6,6 +6,7 @@ import static org.mockito.Mockito.mock;
 
 import com.google.protobuf.ByteString;
 import cta.common.CtaCommon.ChecksumBlob.Checksum.Type;
+import cta.eos.CtaEos.Transport;
 import diskCacheV111.vehicles.GenericStorageInfo;
 import java.net.URI;
 import org.dcache.pool.nearline.spi.FlushRequest;
@@ -18,10 +19,25 @@ import org.junit.Test;
 
 public class RequestsFactoryTest {
 
+
+    private final CtaTransportProvider transportProvider = new CtaTransportProvider() {
+        @Override
+        public Transport getTransport(String id) {
+            String reporterUrl = "eosQuery://localhost/success/" + id;
+            String errorReporter = "eosQuery://localhost/error/" + id + "?error=";
+
+            return Transport.newBuilder()
+                  .setDstUrl("root://localhost/" + id)
+                  .setErrorReportUrl(errorReporter)
+                  .setReportUrl(reporterUrl)
+                  .build();
+        }
+    };
+
     @Test
     public void testArchive() {
 
-        var rf = new RequestsFactory("dcache", "foo", "bar", "https://localhost");
+        var rf = new RequestsFactory("dcache", "foo", "bar", transportProvider);
 
         byte[] csum = new byte[]{0x11, 0x22, 0x33, 0x44};
         byte[] csumCta = new byte[]{0x44, 0x33, 0x22, 0x11};
@@ -51,7 +67,7 @@ public class RequestsFactoryTest {
     @Test
     public void testDelete() {
 
-        var rf = new RequestsFactory("dcache", "foo", "bar", "https://localhost");
+        var rf = new RequestsFactory("dcache", "foo", "bar", transportProvider);
 
         var pnfsid = "0000C9B4E3768770452E8B1B8E0232584872";
         var archiveId = 12345L;
@@ -69,7 +85,7 @@ public class RequestsFactoryTest {
     @Test
     public void testRetrieve() {
 
-        var rf = new RequestsFactory("dcache", "foo", "bar", "https://localhost");
+        var rf = new RequestsFactory("dcache", "foo", "bar", transportProvider);
 
         var pnfsid = "0000C9B4E3768770452E8B1B8E0232584872";
         var archiveId = 12345L;

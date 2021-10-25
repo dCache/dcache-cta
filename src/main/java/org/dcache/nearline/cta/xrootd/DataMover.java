@@ -5,9 +5,11 @@ import static org.dcache.xrootd.protocol.XrootdProtocol.DATA_SERVER;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.util.concurrent.AbstractIdleService;
+import cta.eos.CtaEos.Transport;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
@@ -22,6 +24,7 @@ import java.util.NoSuchElementException;
 import java.util.Properties;
 import java.util.ServiceLoader;
 import java.util.concurrent.ConcurrentMap;
+import org.dcache.nearline.cta.CtaTransportProvider;
 import org.dcache.pool.nearline.spi.NearlineRequest;
 import org.dcache.xrootd.core.XrootdAuthenticationHandlerProvider;
 import org.dcache.xrootd.core.XrootdAuthorizationHandlerProvider;
@@ -34,7 +37,7 @@ import org.dcache.xrootd.stream.ChunkedResponseWriteHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class DataMover extends AbstractIdleService {
+public class DataMover extends AbstractIdleService implements CtaTransportProvider {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(DataMover.class);
 
@@ -55,6 +58,8 @@ public class DataMover extends AbstractIdleService {
      * Driver configured hsm type;
      */
     private final String hsmType;
+
+    private volatile String url;
 
     public DataMover(String type, String name, InetSocketAddress sa,
           ConcurrentMap<String, ? extends NearlineRequest> pendingRequests) {
@@ -82,7 +87,17 @@ public class DataMover extends AbstractIdleService {
 
     @Override
     protected void startUp() throws Exception {
-        cf = server.bind().sync();
+        cf = server.bind()
+              .sync()
+              .addListener(new ChannelFutureListener() {
+                  @Override
+                  public void operationComplete(ChannelFuture channelFuture) throws Exception {
+                      InetSocketAddress sa = (InetSocketAddress) channelFuture.channel()
+                            .localAddress();
+                      url = sa.getAddress().getHostAddress() + ":" + sa.getPort();
+                      LOGGER.info("Xroot IO mover started on: {}", url);
+                  }
+              });
     }
 
     @Override
@@ -139,7 +154,8 @@ public class DataMover extends AbstractIdleService {
             }
 
             pipeline.addLast("chunk-writer", new ChunkedResponseWriteHandler());
-            pipeline.addLast("data-server", new DataServerHandler(hsmType, hsmName, pendingRequests));
+            pipeline.addLast("data-server",
+                  new DataServerHandler(hsmType, hsmName, pendingRequests));
         }
 
         public final ChannelHandlerFactory createHandlerFactory(String plugin)
@@ -158,6 +174,18 @@ public class DataMover extends AbstractIdleService {
             }
             throw new NoSuchElementException("Channel handler plugin not found: " + plugin);
         }
+    }
 
+    @Override
+    public Transport getTransport(String id) {
+        // REVISIT:
+        String reporterUrl = "eosQuery://" + url + "/success/" + id;
+        String errorReporter = "eosQuery://" + url + "/error/" + id + "?error=";
+
+        return Transport.newBuilder()
+              .setDstUrl("root://" + url + "/" + id)
+              .setErrorReportUrl(errorReporter)
+              .setReportUrl(reporterUrl)
+              .build();
     }
 }
