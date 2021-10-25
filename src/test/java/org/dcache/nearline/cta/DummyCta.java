@@ -3,10 +3,11 @@ package org.dcache.nearline.cta;
 import com.google.protobuf.Empty;
 import cta.admin.CtaAdmin.Version;
 import io.grpc.Server;
+import io.grpc.Status;
+import io.grpc.StatusException;
 import io.grpc.netty.shaded.io.grpc.netty.NettyServerBuilder;
 import io.grpc.stub.StreamObserver;
 import java.io.IOException;
-import java.net.SocketAddress;
 import java.util.concurrent.ThreadLocalRandom;
 import org.dcache.cta.rpc.ArchiveRequest;
 import org.dcache.cta.rpc.ArchiveResponse;
@@ -18,61 +19,78 @@ import org.dcache.cta.rpc.RetrieveResponse;
 public class DummyCta {
 
     private final Server server;
+    private volatile boolean fail;
 
     public DummyCta() {
         server = NettyServerBuilder.forPort(0).addService(new CtaSvc()).build();
-
+        fail = false;
     }
 
     public void start() throws IOException {
         server.start();
     }
 
-    public void shutdown() {
+    public void shutdown() throws InterruptedException {
         server.shutdown();
+        server.awaitTermination();
     }
 
     public String getConnectString() {
         return "localhost:" + server.getPort();
     }
 
-    private static class CtaSvc extends CtaRpcGrpc.CtaRpcImplBase {
+    public void fail() {
+        fail = true;
+    }
+
+    private class CtaSvc extends CtaRpcGrpc.CtaRpcImplBase {
 
         @Override
         public void version(Empty request, StreamObserver<Version> responseObserver) {
-            responseObserver.onNext(
-                  Version.newBuilder()
-                        .setCtaVersion("embedded dummy x-x-x")
-                        .setXrootdSsiProtobufInterfaceVersion("testing")
-                        .build()
-            );
-            responseObserver.onCompleted();
+            if (!fail) {
+                responseObserver.onNext(
+                      Version.newBuilder()
+                            .setCtaVersion("embedded dummy x-x-x")
+                            .setXrootdSsiProtobufInterfaceVersion("testing")
+                            .build()
+                );
+                responseObserver.onCompleted();
+            } else {
+                responseObserver.onError(new StatusException(Status.INTERNAL));
+            }
         }
 
         @Override
         public void archive(ArchiveRequest request,
               StreamObserver<ArchiveResponse> responseObserver) {
 
+            if (!fail) {
+                var response = ArchiveResponse.newBuilder()
+                      .setFid(ThreadLocalRandom.current().nextLong())
+                      .setReqId("ArchiveRequest-" + ThreadLocalRandom.current().nextInt())
+                      .build();
 
-            var response = ArchiveResponse.newBuilder()
-                  .setFid(ThreadLocalRandom.current().nextLong())
-                  .setReqId("ArchiveRequest-" + ThreadLocalRandom.current().nextInt())
-                  .build();
-
-            responseObserver.onNext(response);
-            responseObserver.onCompleted();
+                responseObserver.onNext(response);
+                responseObserver.onCompleted();
+            } else {
+                responseObserver.onError(new StatusException(Status.INTERNAL));
+            }
         }
 
         @Override
         public void retrieve(RetrieveRequest request,
               StreamObserver<RetrieveResponse> responseObserver) {
 
-            var response = RetrieveResponse.newBuilder()
-                  .setReqId("RetrieveRequest-" + ThreadLocalRandom.current().nextInt())
-                  .build();
+            if (!fail) {
+                var response = RetrieveResponse.newBuilder()
+                      .setReqId("RetrieveRequest-" + ThreadLocalRandom.current().nextInt())
+                      .build();
 
-            responseObserver.onNext(response);
-            responseObserver.onCompleted();
+                responseObserver.onNext(response);
+                responseObserver.onCompleted();
+            } else {
+                responseObserver.onError(new StatusException(Status.INTERNAL));
+            }
         }
 
         @Override

@@ -1,7 +1,10 @@
 package org.dcache.nearline.cta;
 
 import static org.dcache.nearline.cta.CtaNearlineStorage.*;
+import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -14,6 +17,10 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import org.dcache.pool.nearline.spi.FlushRequest;
 import org.dcache.pool.nearline.spi.StageRequest;
 import org.dcache.vehicles.FileAttributes;
@@ -26,6 +33,8 @@ public class CtaNearlineStorageTest {
     private DummyCta cta;
     private Map<String, String> drvConfig;
     private CtaNearlineStorage driver;
+
+    private CompletableFuture<Void> waitForComplete;
 
     @Before
     public void setUp() throws IOException {
@@ -46,7 +55,10 @@ public class CtaNearlineStorageTest {
 
     @After
     public void tierDown() {
-        cta.shutdown();
+        try {
+            cta.shutdown();
+        } catch (InterruptedException e) {
+        }
         if (driver != null) {
             driver.shutdown();
         }
@@ -157,7 +169,7 @@ public class CtaNearlineStorageTest {
     public void testFlushRequestFailActivation() {
 
         var request = mockedFlushRequest();
-        when(request.activate()).thenReturn(Futures.immediateFailedFuture(new IOException()));
+        when(request.activate()).thenReturn(Futures.immediateFailedFuture(new IOException("injected error")));
 
         driver = new CtaNearlineStorage("foo", "bar");
         driver.configure(drvConfig);
@@ -172,7 +184,7 @@ public class CtaNearlineStorageTest {
     public void testStageRequestFailActivation() {
 
         var request = mockedStageRequest();
-        when(request.activate()).thenReturn(Futures.immediateFailedFuture(new IOException()));
+        when(request.activate()).thenReturn(Futures.immediateFailedFuture(new IOException("injected error")));
 
         driver = new CtaNearlineStorage("foo", "bar");
         driver.configure(drvConfig);
@@ -187,7 +199,7 @@ public class CtaNearlineStorageTest {
     public void testStageRequestFailAllocation() {
 
         var request = mockedStageRequest();
-        when(request.allocate()).thenReturn(Futures.immediateFailedFuture(new IOException()));
+        when(request.allocate()).thenReturn(Futures.immediateFailedFuture(new IOException("injected error")));
 
         driver = new CtaNearlineStorage("foo", "bar");
         driver.configure(drvConfig);
@@ -212,6 +224,45 @@ public class CtaNearlineStorageTest {
         driver.shutdown();
     }
 
+    @Test
+    public void testStageRequestFailOnRpcError() {
+
+        var request = mockedStageRequest();
+
+        driver = new CtaNearlineStorage("foo", "bar");
+        driver.configure(drvConfig);
+        driver.start();
+
+        cta.fail();
+        driver.stage(Set.of(request));
+        waitToComplete();
+
+        verify(request).failed(any());
+    }
+
+    @Test
+    public void testFlushRequestFailOnRpcError() {
+
+        var request = mockedFlushRequest();
+
+        driver = new CtaNearlineStorage("foo", "bar");
+        driver.configure(drvConfig);
+        driver.start();
+
+        cta.fail();
+        driver.flush(Set.of(request));
+        waitToComplete();
+
+        verify(request).failed(any());
+    }
+
+    void waitToComplete() {
+        try {
+            waitForComplete.get(1, TimeUnit.SECONDS);
+        } catch (InterruptedException | ExecutionException | TimeoutException e) {
+            fail("Request not complete");
+        }
+    }
 
     private FlushRequest mockedFlushRequest() {
 
@@ -227,6 +278,23 @@ public class CtaNearlineStorageTest {
         when(request.activate()).thenReturn(Futures.immediateFuture(null));
         when(request.getFileAttributes()).thenReturn(attrs);
         when(request.getId()).thenReturn(UUID.randomUUID());
+
+        waitForComplete = new CompletableFuture<>();
+
+        doAnswer(i -> {
+            waitForComplete.complete(null);
+            return null;
+        }).when(request).failed(any());
+
+        doAnswer(i -> {
+            waitForComplete.complete(null);
+            return null;
+        }).when(request).failed(anyInt(), any());
+
+        doAnswer(i -> {
+            waitForComplete.complete(null);
+            return null;
+        }).when(request).completed(any());
 
         return request;
     }
@@ -250,6 +318,23 @@ public class CtaNearlineStorageTest {
         when(request.allocate()).thenReturn(Futures.immediateFuture(null));
         when(request.getFileAttributes()).thenReturn(attrs);
         when(request.getId()).thenReturn(UUID.randomUUID());
+
+        waitForComplete = new CompletableFuture<>();
+
+        doAnswer(i -> {
+            waitForComplete.complete(null);
+            return null;
+        }).when(request).failed(any());
+
+        doAnswer(i -> {
+            waitForComplete.complete(null);
+            return null;
+        }).when(request).failed(anyInt(), any());
+
+        doAnswer(i -> {
+            waitForComplete.complete(null);
+            return null;
+        }).when(request).completed(any());
 
         return request;
     }
