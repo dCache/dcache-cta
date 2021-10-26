@@ -75,7 +75,7 @@ submit as much request as possible. Thus grouping and collecting request on the 
 be disabled:
 
 ```
-queue define class -expire=0 -pending=0 -total=0 -open <hsmType> *@<hsmType>
+queue define class -expire=0 -pending=0 -total=0 -open <hsmType> *
 ```
 
 ### The available configuration options:
