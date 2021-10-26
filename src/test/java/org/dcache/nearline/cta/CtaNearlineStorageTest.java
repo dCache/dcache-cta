@@ -275,6 +275,22 @@ public class CtaNearlineStorageTest {
         verify(request).completed(any());
     }
 
+    @Test
+    public void testRemoveRequestOnRpcError() {
+
+        var request = mockedRemoveRequest();
+
+        driver = new CtaNearlineStorage("foo", "bar");
+        driver.configure(drvConfig);
+        driver.start();
+        cta.fail();
+
+        driver.remove(Set.of(request));
+        waitToComplete();
+
+        verify(request).failed(any());
+    }
+
     void waitToComplete() {
         try {
             waitForComplete.get(1, TimeUnit.SECONDS);
