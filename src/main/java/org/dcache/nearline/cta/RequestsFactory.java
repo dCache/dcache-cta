@@ -121,8 +121,6 @@ public class RequestsFactory {
         var id = asPath.getParentFile().getName();
         long archiveId = Long.parseLong(asPath.getName());
 
-        var transport = transportProvider.getTransport(id);
-
         var ctaFileInfo = FileInfo.newBuilder()
               .setFid(id)
               .build();
@@ -130,7 +128,6 @@ public class RequestsFactory {
         return DeleteRequest.newBuilder()
               .setInstance(instance)
               .setCli(client)
-              .setTransport(transport)
               .setFile(ctaFileInfo)
               .setArchiveId(archiveId)
               .build();
