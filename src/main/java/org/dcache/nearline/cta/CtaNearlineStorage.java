@@ -6,6 +6,7 @@ import com.google.common.base.Throwables;
 import com.google.common.net.HostAndPort;
 import com.google.protobuf.Empty;
 import cta.admin.CtaAdmin.Version;
+import io.grpc.ConnectivityState;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.stub.StreamObserver;
@@ -305,25 +306,27 @@ public class CtaNearlineStorage implements NearlineStorage {
               .forAddress(ctaEndpoint.getHost(), ctaEndpoint.getPort())
               .usePlaintext()
               .build();
+
         cta = CtaRpcGrpc.newStub(channel);
+        channel.notifyWhenStateChanged(ConnectivityState.CONNECTING, () ->
+            cta.version(Empty.newBuilder().build(), new StreamObserver<>() {
+                @Override
+                public void onNext(Version version) {
+                    LOGGER.info("Connected to CTA version {} : {}", version.getCtaVersion(),
+                          version.getXrootdSsiProtobufInterfaceVersion());
+                }
 
-        cta.version(Empty.newBuilder().build(), new StreamObserver<>() {
-            @Override
-            public void onNext(Version version) {
-                LOGGER.info("Connected to CTA version {} : {}", version.getCtaVersion(),
-                      version.getXrootdSsiProtobufInterfaceVersion());
-            }
+                @Override
+                public void onError(Throwable t) {
+                    LOGGER.error("Failed to get CTA version {}", t.getMessage());
+                }
 
-            @Override
-            public void onError(Throwable t) {
-                LOGGER.error("Failed to get CTA version {}", t.getMessage());
-            }
+                @Override
+                public void onCompleted() {
 
-            @Override
-            public void onCompleted() {
-
-            }
-        });
+                }
+            })
+        );
 
         ctaRequestFactory = new RequestsFactory(instanceName, ctaUser, ctaGroup, dataMover);
     }
