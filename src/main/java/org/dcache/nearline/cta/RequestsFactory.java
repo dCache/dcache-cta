@@ -114,12 +114,11 @@ public class RequestsFactory {
 
     public DeleteRequest valueOf(RemoveRequest request) {
 
-        // we expect uri in form: cta://cta/<pnfsid>/archiveid
-        var uri = request.getUri();
-        File asPath = new File(uri.getPath());
+        // we expect uri in form: cta://cta/<pnfsid>?archiveid=xxx
 
-        var id = asPath.getParentFile().getName();
-        long archiveId = Long.parseLong(asPath.getName());
+        var uri = request.getUri();
+        var id = new File(uri.getPath()).getName();
+        long archiveId = Long.parseLong(uri.getQuery().substring("archiveid=".length()));
 
         var ctaFileInfo = FileInfo.newBuilder()
               .setFid(id)

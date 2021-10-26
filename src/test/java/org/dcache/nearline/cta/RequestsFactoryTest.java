@@ -71,7 +71,7 @@ public class RequestsFactoryTest {
 
         var pnfsid = "0000C9B4E3768770452E8B1B8E0232584872";
         var archiveId = 12345L;
-        var uri = URI.create(String.format("cta://cta/%s/%d", pnfsid, archiveId));
+        var uri = URI.create(String.format("cta://cta/%s?archiveid=%d", pnfsid, archiveId));
 
         var removeRequest = mock(RemoveRequest.class);
         given(removeRequest.getUri()).willReturn(uri);

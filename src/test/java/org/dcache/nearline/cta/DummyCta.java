@@ -95,7 +95,14 @@ public class DummyCta {
 
         @Override
         public void delete(DeleteRequest request, StreamObserver<Empty> responseObserver) {
-            super.delete(request, responseObserver);
+            if (!fail) {
+                var response = Empty.newBuilder()
+                      .build();
+                responseObserver.onNext(response);
+                responseObserver.onCompleted();
+            } else {
+                responseObserver.onError(new StatusException(Status.INTERNAL));
+            }
         }
     }
 }

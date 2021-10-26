@@ -22,6 +22,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import org.dcache.pool.nearline.spi.FlushRequest;
+import org.dcache.pool.nearline.spi.RemoveRequest;
 import org.dcache.pool.nearline.spi.StageRequest;
 import org.dcache.vehicles.FileAttributes;
 import org.junit.After;
@@ -169,7 +170,8 @@ public class CtaNearlineStorageTest {
     public void testFlushRequestFailActivation() {
 
         var request = mockedFlushRequest();
-        when(request.activate()).thenReturn(Futures.immediateFailedFuture(new IOException("injected error")));
+        when(request.activate()).thenReturn(
+              Futures.immediateFailedFuture(new IOException("injected error")));
 
         driver = new CtaNearlineStorage("foo", "bar");
         driver.configure(drvConfig);
@@ -184,7 +186,8 @@ public class CtaNearlineStorageTest {
     public void testStageRequestFailActivation() {
 
         var request = mockedStageRequest();
-        when(request.activate()).thenReturn(Futures.immediateFailedFuture(new IOException("injected error")));
+        when(request.activate()).thenReturn(
+              Futures.immediateFailedFuture(new IOException("injected error")));
 
         driver = new CtaNearlineStorage("foo", "bar");
         driver.configure(drvConfig);
@@ -199,7 +202,8 @@ public class CtaNearlineStorageTest {
     public void testStageRequestFailAllocation() {
 
         var request = mockedStageRequest();
-        when(request.allocate()).thenReturn(Futures.immediateFailedFuture(new IOException("injected error")));
+        when(request.allocate()).thenReturn(
+              Futures.immediateFailedFuture(new IOException("injected error")));
 
         driver = new CtaNearlineStorage("foo", "bar");
         driver.configure(drvConfig);
@@ -254,6 +258,21 @@ public class CtaNearlineStorageTest {
         waitToComplete();
 
         verify(request).failed(any());
+    }
+
+    @Test
+    public void testSuccessOnRemove() {
+
+        var request = mockedRemoveRequest();
+
+        driver = new CtaNearlineStorage("foo", "bar");
+        driver.configure(drvConfig);
+        driver.start();
+
+        driver.remove(Set.of(request));
+        waitToComplete();
+
+        verify(request).completed(any());
     }
 
     void waitToComplete() {
@@ -336,6 +355,32 @@ public class CtaNearlineStorageTest {
             return null;
         }).when(request).completed(any());
 
+        return request;
+    }
+
+    private RemoveRequest mockedRemoveRequest() {
+
+        var request = mock(RemoveRequest.class);
+
+        when(request.getUri()).thenReturn(
+              URI.create("cta://cta/0000C9B4E3768770452E8B1B8E0232584872?archiveid=1234"));
+
+        waitForComplete = new CompletableFuture<>();
+
+        doAnswer(i -> {
+            waitForComplete.complete(null);
+            return null;
+        }).when(request).failed(any());
+
+        doAnswer(i -> {
+            waitForComplete.complete(null);
+            return null;
+        }).when(request).failed(anyInt(), any());
+
+        doAnswer(i -> {
+            waitForComplete.complete(null);
+            return null;
+        }).when(request).completed(any());
         return request;
     }
 
