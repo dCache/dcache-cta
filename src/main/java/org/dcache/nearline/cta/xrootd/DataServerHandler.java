@@ -72,7 +72,6 @@ import org.dcache.xrootd.protocol.messages.StatRequest;
 import org.dcache.xrootd.protocol.messages.StatResponse;
 import org.dcache.xrootd.protocol.messages.SyncRequest;
 import org.dcache.xrootd.protocol.messages.WriteRequest;
-import org.dcache.xrootd.stream.ChunkedFileChannelReadResponse;
 import org.dcache.xrootd.util.FileStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -90,11 +89,6 @@ public class DataServerHandler extends XrootdRequestHandler {
                 .setNameFormat("Post-restore-completion-%d")
                 .build()
     );
-
-    /**
-     * Maximum frame size of a read or readv reply. Does not include the size of the frame header.
-     */
-    private static final int MAX_FRAME_SIZE = 2 << 20;
 
     private final List<RandomAccessFile> _openFiles = new ArrayList<>();
 
@@ -236,7 +230,11 @@ public class DataServerHandler extends XrootdRequestHandler {
             return withOk(msg);
         }
 
-        return new ChunkedFileChannelReadResponse(msg, MAX_FRAME_SIZE, raf.getChannel());
+        try {
+            return new ZeroCopyReadResponse(msg, raf.getChannel());
+        } catch (IOException e) {
+            throw new XrootdException(kXR_IOError, e.getMessage());
+        }
     }
 
     /**
