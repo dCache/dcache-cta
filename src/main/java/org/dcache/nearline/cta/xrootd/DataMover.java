@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Properties;
 import java.util.ServiceLoader;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentMap;
 import org.dcache.nearline.cta.CtaTransportProvider;
 import org.dcache.pool.nearline.spi.NearlineRequest;
@@ -42,7 +43,7 @@ public class DataMover extends AbstractIdleService implements CtaTransportProvid
     private static final Logger LOGGER = LoggerFactory.getLogger(DataMover.class);
 
     private ServerBootstrap server;
-    private ChannelFuture cf;
+    private CompletableFuture<Void> cf = new CompletableFuture<>();
 
     private final EventLoopGroup bossGroup;
     private final EventLoopGroup workerGroup;
@@ -87,17 +88,24 @@ public class DataMover extends AbstractIdleService implements CtaTransportProvid
 
     @Override
     protected void startUp() throws Exception {
-        cf = server.bind()
-              .sync()
+
+        server.bind()
               .addListener(new ChannelFutureListener() {
                   @Override
                   public void operationComplete(ChannelFuture channelFuture) throws Exception {
-                      InetSocketAddress sa = (InetSocketAddress) channelFuture.channel()
-                            .localAddress();
-                      url = sa.getAddress().getHostAddress() + ":" + sa.getPort();
-                      LOGGER.info("Xroot IO mover started on: {}", url);
+                      if (!channelFuture.isSuccess()) {
+                          LOGGER.error("Failed to start DataMover: {}", channelFuture.cause().getMessage());
+                          cf.completeExceptionally(channelFuture.cause());
+                      } else {
+                          InetSocketAddress sa = (InetSocketAddress) channelFuture.channel()
+                                .localAddress();
+                          url = sa.getAddress().getHostAddress() + ":" + sa.getPort();
+                          LOGGER.warn("Xroot IO mover started on: {}", url);
+                          cf.complete(null);
+                      }
                   }
               });
+        cf.get();
     }
 
     @Override
@@ -175,6 +183,7 @@ public class DataMover extends AbstractIdleService implements CtaTransportProvid
 
         Preconditions.checkState(cf != null, "Service is not started");
         Preconditions.checkState(cf.isDone(), "Service is not bound yet.");
+        Preconditions.checkState(url != null, "service url is null");
 
         // REVISIT:
         String reporterUrl = "eosQuery://" + url + "/success/" + id;
