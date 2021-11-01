@@ -100,7 +100,7 @@ public class DataMover extends AbstractIdleService implements CtaTransportProvid
                           InetSocketAddress sa = (InetSocketAddress) channelFuture.channel()
                                 .localAddress();
                           url = sa.getAddress().getHostAddress() + ":" + sa.getPort();
-                          LOGGER.warn("Xroot IO mover started on: {}", url);
+                          LOGGER.info("Xroot IO mover started on: {}", url);
                           cf.complete(null);
                       }
                   }
