@@ -21,6 +21,7 @@ import org.dcache.pool.nearline.spi.StageRequest;
 import org.dcache.vehicles.FileAttributes;
 import org.dcache.xrootd.core.XrootdException;
 import org.dcache.xrootd.protocol.XrootdProtocol;
+import org.dcache.xrootd.protocol.messages.CloseRequest;
 import org.dcache.xrootd.protocol.messages.OpenRequest;
 import org.junit.Before;
 import org.junit.Test;
@@ -31,7 +32,6 @@ public class DataServerHandlerTest {
     private DataServerHandler handler;
     private ConcurrentMap<String, NearlineRequest> requests;
     private ChannelHandlerContext ctx;
-
 
     @Before
     public void setUp() throws Exception {
@@ -115,6 +115,20 @@ public class DataServerHandlerTest {
         OpenRequest msg = new OpenRequest(buf);
 
         handler.doOnOpen(ctx, msg);
+    }
+
+    @Test(expected = XrootdException.class)
+    public void testCloseNoOpen() throws XrootdException, IOException {
+
+        var buf = new ByteBufBuilder()
+              .withShort(1)    // stream id
+              .withShort(XrootdProtocol.kXR_close)
+              .withInt(1) // fh
+              .build();
+
+        var msg = new CloseRequest(buf);
+
+        handler.doOnClose(ctx, msg);
     }
 
     private StageRequest mockedStageRequest() throws IOException {
