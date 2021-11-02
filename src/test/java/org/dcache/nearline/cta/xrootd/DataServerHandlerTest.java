@@ -199,6 +199,29 @@ public class DataServerHandlerTest {
         handler.doOnQuery(ctx, msg);
     }
 
+    @Test(expected = XrootdException.class)
+    public void testBogusQueryRequest() throws XrootdException, IOException {
+
+        var stageRequest = mockedFlushRequest();
+
+        var error = "/foo/0000C9B4E3768770452E8B1B8E0232584872?error="
+              + Base64.getEncoder().encodeToString("some error".getBytes(StandardCharsets.UTF_8));
+
+        var buf = new ByteBufBuilder()
+              .withShort(1)    // stream id
+              .withShort(XrootdProtocol.kXR_query)
+              .withShort(XrootdProtocol.kXR_Qopaquf)
+              .withInt(-1) // fh, not used
+              .withInt(error.length())
+              .withZeros(6)
+              .withString(error, StandardCharsets.UTF_8)
+              .build();
+
+        var msg = new QueryRequest(buf);
+
+        handler.doOnQuery(ctx, msg);
+    }
+
     @Test
     public void testErrorPropagation() throws XrootdException, IOException {
 
@@ -245,6 +268,28 @@ public class DataServerHandlerTest {
         handler.doOnQuery(ctx, msg);
         var expectedUri = Set.of(URI.create("cta://test/0000C9B4E3768770452E8B1B8E0232584872?archiveid=31415926"));
         verify(stageRequest).completed(expectedUri);
+    }
+
+    @Test(expected = XrootdException.class)
+    public void testFailOnMissingId() throws XrootdException, IOException {
+
+        var stageRequest = mockedFlushRequest();
+
+        var success = "/success/0000C9B4E3768770452E8B1B8E0232584872?foo=31415926";
+
+        var buf = new ByteBufBuilder()
+              .withShort(1)    // stream id
+              .withShort(XrootdProtocol.kXR_query)
+              .withShort(XrootdProtocol.kXR_Qopaquf)
+              .withInt(-1) // fh, not used
+              .withInt(success.length())
+              .withZeros(6)
+              .withString(success, StandardCharsets.UTF_8)
+              .build();
+
+        var msg = new QueryRequest(buf);
+
+        handler.doOnQuery(ctx, msg);
     }
 
     void waitToComplete() {
