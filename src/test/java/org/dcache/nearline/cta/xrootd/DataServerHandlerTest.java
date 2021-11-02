@@ -2,7 +2,12 @@ package org.dcache.nearline.cta.xrootd;
 
 import static java.io.File.createTempFile;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.google.common.util.concurrent.Futures;
@@ -13,8 +18,12 @@ import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import org.dcache.pool.nearline.spi.FlushRequest;
 import org.dcache.pool.nearline.spi.NearlineRequest;
 import org.dcache.pool.nearline.spi.StageRequest;
@@ -32,6 +41,7 @@ public class DataServerHandlerTest {
     private DataServerHandler handler;
     private ConcurrentMap<String, NearlineRequest> requests;
     private ChannelHandlerContext ctx;
+    private CompletableFuture<Void> waitForComplete;
 
     @Before
     public void setUp() throws Exception {
@@ -131,6 +141,46 @@ public class DataServerHandlerTest {
         handler.doOnClose(ctx, msg);
     }
 
+    @Test
+    public void testCloseAfterStage() throws XrootdException, IOException, InterruptedException {
+
+        var stageRequest = mockedStageRequest();
+
+        var buf = new ByteBufBuilder()
+              .withShort(1)    // stream id
+              .withShort(XrootdProtocol.kXR_open)
+              .withShort(0)
+              .withShort(XrootdProtocol.kXR_delete | XrootdProtocol.kXR_new)
+              .withZeros(12) // padding
+              .withString("0000C9B4E3768770452E8B1B8E0232584872", StandardCharsets.UTF_8)
+              .build();
+
+        var openMsg = new OpenRequest(buf);
+
+        var openResponse = handler.doOnOpen(ctx, openMsg);
+
+        buf = new ByteBufBuilder()
+              .withShort(1)    // stream id
+              .withShort(XrootdProtocol.kXR_close)
+              .withInt(openResponse.getFileHandle()) // fh
+              .build();
+
+        var closeMgs = new CloseRequest(buf);
+
+        handler.doOnClose(ctx, closeMgs);
+        waitToComplete();
+
+        verify(stageRequest).completed(any());
+    }
+
+    void waitToComplete() {
+        try {
+            waitForComplete.get(1, TimeUnit.SECONDS);
+        } catch (InterruptedException | ExecutionException | TimeoutException e) {
+            fail("Request not complete");
+        }
+    }
+
     private StageRequest mockedStageRequest() throws IOException {
 
         var storageInfo = GenericStorageInfo.valueOf("a:b@z", "*");
@@ -158,6 +208,23 @@ public class DataServerHandlerTest {
         when(request.getReplicaUri()).thenReturn(f.toURI());
 
         requests.put("0000C9B4E3768770452E8B1B8E0232584872", request);
+
+        waitForComplete = new CompletableFuture<>();
+
+        doAnswer(i -> {
+            waitForComplete.complete(null);
+            return null;
+        }).when(request).failed(any());
+
+        doAnswer(i -> {
+            waitForComplete.complete(null);
+            return null;
+        }).when(request).failed(anyInt(), any());
+
+        doAnswer(i -> {
+            waitForComplete.complete(null);
+            return null;
+        }).when(request).completed(any());
 
         return request;
     }
