@@ -30,7 +30,6 @@ import static org.dcache.xrootd.protocol.XrootdProtocol.kXR_readable;
 import static org.dcache.xrootd.protocol.XrootdProtocol.kXR_writable;
 import static org.dcache.xrootd.protocol.XrootdProtocol.kXR_xset;
 
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import diskCacheV111.util.Adler32;
 import diskCacheV111.util.CacheException;
 import io.netty.channel.ChannelHandlerContext;
@@ -38,7 +37,6 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
-import java.lang.ref.Cleaner;
 import java.net.URI;
 import java.nio.ByteBuffer;
 import java.nio.channels.ClosedChannelException;
@@ -82,15 +80,28 @@ public class DataServerHandler extends XrootdRequestHandler {
           LoggerFactory.getLogger(DataServerHandler.class);
 
     /**
-     * Resource cleaner the fired when object becomes unreachable.
+     * A record that binds open file and request.
      */
-    private static final Cleaner CLEANER = Cleaner.create(
-          new ThreadFactoryBuilder()
-                .setNameFormat("Post-restore-completion-%d")
-                .build()
-    );
+    private static class MigrationRequest {
 
-    private final List<RandomAccessFile> _openFiles = new ArrayList<>();
+        private final NearlineRequest request;
+        private final RandomAccessFile raf;
+
+        public MigrationRequest(NearlineRequest request, RandomAccessFile raf) {
+            this.request = request;
+            this.raf = raf;
+        }
+
+        public RandomAccessFile raf() {
+            return raf;
+        }
+
+        public NearlineRequest request() {
+            return request;
+        }
+    }
+
+    private final List<MigrationRequest> _openFiles = new ArrayList<>();
 
     private final ConcurrentMap<String, ? extends NearlineRequest> pendingRequests;
 
@@ -174,20 +185,6 @@ public class DataServerHandler extends XrootdRequestHandler {
             if (msg.isReadWrite() || msg.isNew() || msg.isDelete()) {
                 LOGGER.info("Opening {} for writing", file);
                 raf = new RandomAccessFile(file, "rw");
-                CLEANER.register(raf, () -> {
-                    LOGGER.info("Restore Complete for {}", file);
-                    ForkJoinPool.commonPool().execute(() -> {
-                        try {
-                            Checksum checksum = calculateChecksum(file);
-                            r.completed(Set.of(checksum));
-                        } catch (IOException e) {
-                            LOGGER.error("Post-restore checksum calculation of {} failed: {}", file,
-                                  e.getMessage());
-                            r.failed(e);
-                        }
-                    });
-                });
-
                 if (msg.isDelete()) {
                     raf.setLength(0);
                 }
@@ -201,7 +198,9 @@ public class DataServerHandler extends XrootdRequestHandler {
                 stat = statusByFile(file);
             }
 
-            int fd = addOpenFile(raf);
+            var migrationRequest = new MigrationRequest(r, raf);
+            int fd = addOpenFile(migrationRequest);
+
             return new OpenResponse(msg,
                   fd,
                   null,
@@ -225,7 +224,7 @@ public class DataServerHandler extends XrootdRequestHandler {
     @Override
     protected Object doOnRead(ChannelHandlerContext ctx, ReadRequest msg)
           throws XrootdException {
-        RandomAccessFile raf = getOpenFile(msg.getFileHandle());
+        RandomAccessFile raf = getOpenFile(msg.getFileHandle()).raf();
         if (msg.bytesToRead() == 0) {
             return withOk(msg);
         }
@@ -249,7 +248,7 @@ public class DataServerHandler extends XrootdRequestHandler {
           throws XrootdException {
         try {
             FileChannel channel =
-                  getOpenFile(msg.getFileHandle()).getChannel();
+                  getOpenFile(msg.getFileHandle()).raf().getChannel();
             channel.position(msg.getWriteOffset());
             msg.getData(channel);
             return withOk(msg);
@@ -268,7 +267,7 @@ public class DataServerHandler extends XrootdRequestHandler {
     protected OkResponse<SyncRequest> doOnSync(ChannelHandlerContext ctx, SyncRequest msg)
           throws XrootdException {
         try {
-            getOpenFile(msg.getFileHandle()).getFD().sync();
+            getOpenFile(msg.getFileHandle()).raf().getFD().sync();
             return withOk(msg);
         } catch (IOException e) {
             throw new XrootdException(kXR_IOError, e.getMessage());
@@ -286,7 +285,21 @@ public class DataServerHandler extends XrootdRequestHandler {
     protected OkResponse<CloseRequest> doOnClose(ChannelHandlerContext ctx, CloseRequest msg)
           throws XrootdException {
         try {
-            closeOpenFile(msg.getFileHandle());
+            var r = closeOpenFile(msg.getFileHandle());
+            var file = getFile(r);
+            if (r instanceof StageRequest) {
+                ForkJoinPool.commonPool().execute(() -> {
+                    try {
+                        Checksum checksum = calculateChecksum(file);
+                        r.completed(Set.of(checksum));
+                    } catch (IOException e) {
+                        LOGGER.error("Post-restore checksum calculation of {} failed: {}", file,
+                              e.getMessage());
+                        r.failed(e);
+                    }
+                });
+            }
+
             return withOk(msg);
         } catch (IOException e) {
             throw new XrootdException(kXR_IOError, e.getMessage());
@@ -334,7 +347,8 @@ public class DataServerHandler extends XrootdRequestHandler {
                     // validate that id is a long
                     var archiveId = Long.parseLong(uriQuery.substring(idPrefix.length()));
                     var id = getPnfsId(r);
-                    var hsmUrl = URI.create(hsmType + "://" + hsmName + "/" + id + "?archiveid=" + archiveId);
+                    var hsmUrl = URI.create(
+                          hsmType + "://" + hsmName + "/" + id + "?archiveid=" + archiveId);
                     r.completed(Set.of(hsmUrl));
 
                     LOGGER.info("Successful flushing: {} : archive id: {}", requestId, archiveId);
@@ -349,32 +363,35 @@ public class DataServerHandler extends XrootdRequestHandler {
         }
     }
 
-    private int addOpenFile(RandomAccessFile raf) {
+    private int addOpenFile(MigrationRequest migrationRequest) {
         for (int i = 0; i < _openFiles.size(); i++) {
             if (_openFiles.get(i) == null) {
-                _openFiles.set(i, raf);
+                _openFiles.set(i, migrationRequest);
                 return i;
             }
         }
-        _openFiles.add(raf);
+        _openFiles.add(migrationRequest);
         return _openFiles.size() - 1;
     }
 
-    private RandomAccessFile getOpenFile(int fd)
+    private MigrationRequest getOpenFile(int fd)
           throws XrootdException {
         if (fd >= 0 && fd < _openFiles.size()) {
-            RandomAccessFile raf = _openFiles.get(fd);
-            if (raf != null) {
-                return raf;
+            var migrationRequest = _openFiles.get(fd);
+            if (migrationRequest != null) {
+                return migrationRequest;
             }
         }
         throw new XrootdException(kXR_FileNotOpen, "Invalid file descriptor");
     }
 
-    private void closeOpenFile(int fd)
+    private NearlineRequest closeOpenFile(int fd)
           throws XrootdException, IOException {
-        getOpenFile(fd).close();
+
+        var migrationRequest = getOpenFile(fd);
+        migrationRequest.raf().close();
         _openFiles.set(fd, null);
+        return migrationRequest.request();
     }
 
 
@@ -448,7 +465,7 @@ public class DataServerHandler extends XrootdRequestHandler {
 
     private FileStatus statusByHandle(int handle) throws XrootdException {
 
-        RandomAccessFile file = getOpenFile(handle);
+        RandomAccessFile file = getOpenFile(handle).raf();
         try {
             return new FileStatus(0,
                   file.length(),
