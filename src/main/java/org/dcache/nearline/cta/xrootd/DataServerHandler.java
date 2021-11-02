@@ -48,6 +48,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import org.dcache.pool.nearline.spi.FlushRequest;
 import org.dcache.pool.nearline.spi.NearlineRequest;
 import org.dcache.pool.nearline.spi.StageRequest;
@@ -101,7 +103,15 @@ public class DataServerHandler extends XrootdRequestHandler {
         }
     }
 
-    private final List<MigrationRequest> _openFiles = new ArrayList<>();
+    /**
+     * Requests associated with the open files.
+     */
+    private final List<MigrationRequest> openFiles = new ArrayList<>();
+
+    /**
+     * Read/write lock to guard access to {@link #openFiles} list.
+     */
+    private final ReadWriteLock openFileLock = new ReentrantReadWriteLock();
 
     private final ConcurrentMap<String, ? extends NearlineRequest> pendingRequests;
 
@@ -364,23 +374,52 @@ public class DataServerHandler extends XrootdRequestHandler {
     }
 
     private int addOpenFile(MigrationRequest migrationRequest) {
-        for (int i = 0; i < _openFiles.size(); i++) {
-            if (_openFiles.get(i) == null) {
-                _openFiles.set(i, migrationRequest);
-                return i;
+        var writeLock = openFileLock.writeLock();
+        writeLock.lock();
+        try {
+            for (int i = 0; i < openFiles.size(); i++) {
+                if (openFiles.get(i) == null) {
+                    openFiles.set(i, migrationRequest);
+                    return i;
+                }
             }
+            openFiles.add(migrationRequest);
+            return openFiles.size() - 1;
+        } finally {
+            writeLock.unlock();
         }
-        _openFiles.add(migrationRequest);
-        return _openFiles.size() - 1;
     }
 
     private MigrationRequest getOpenFile(int fd)
           throws XrootdException {
-        if (fd >= 0 && fd < _openFiles.size()) {
-            var migrationRequest = _openFiles.get(fd);
-            if (migrationRequest != null) {
-                return migrationRequest;
+        var readLock = openFileLock.readLock();
+        readLock.lock();
+        try {
+            if (fd >= 0 && fd < openFiles.size()) {
+                var migrationRequest = openFiles.get(fd);
+                if (migrationRequest != null) {
+                    return migrationRequest;
+                }
             }
+        } finally {
+            readLock.unlock();
+        }
+        throw new XrootdException(kXR_FileNotOpen, "Invalid file descriptor");
+    }
+
+    private MigrationRequest getAndRemoveOpenFile(int fd)
+          throws XrootdException {
+        var writeLock = openFileLock.writeLock();
+        writeLock.lock();
+        try {
+            if (fd >= 0 && fd < openFiles.size()) {
+                var migrationRequest = openFiles.set(fd, null);
+                if (migrationRequest != null) {
+                    return migrationRequest;
+                }
+            }
+        } finally {
+            writeLock.unlock();
         }
         throw new XrootdException(kXR_FileNotOpen, "Invalid file descriptor");
     }
@@ -388,9 +427,8 @@ public class DataServerHandler extends XrootdRequestHandler {
     private NearlineRequest closeOpenFile(int fd)
           throws XrootdException, IOException {
 
-        var migrationRequest = getOpenFile(fd);
+        var migrationRequest = getAndRemoveOpenFile(fd);
         migrationRequest.raf().close();
-        _openFiles.set(fd, null);
         return migrationRequest.request();
     }
 
