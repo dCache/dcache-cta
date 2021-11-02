@@ -17,6 +17,8 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.util.Base64;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -32,6 +34,7 @@ import org.dcache.xrootd.core.XrootdException;
 import org.dcache.xrootd.protocol.XrootdProtocol;
 import org.dcache.xrootd.protocol.messages.CloseRequest;
 import org.dcache.xrootd.protocol.messages.OpenRequest;
+import org.dcache.xrootd.protocol.messages.QueryRequest;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -171,6 +174,77 @@ public class DataServerHandlerTest {
         waitToComplete();
 
         verify(stageRequest).completed(any());
+    }
+
+    @Test(expected = XrootdException.class)
+    public void testFailErrorPropagationOnWrongRequest() throws XrootdException, IOException {
+
+        var stageRequest = mockedFlushRequest();
+
+        var error = "/error/xxxx?error="
+              + Base64.getEncoder().encodeToString("some error".getBytes(StandardCharsets.UTF_8));
+
+        var buf = new ByteBufBuilder()
+              .withShort(1)    // stream id
+              .withShort(XrootdProtocol.kXR_query)
+              .withShort(XrootdProtocol.kXR_Qopaquf)
+              .withInt(-1) // fh, not used
+              .withInt(error.length())
+              .withZeros(6)
+              .withString(error, StandardCharsets.UTF_8)
+              .build();
+
+        var msg = new QueryRequest(buf);
+
+        handler.doOnQuery(ctx, msg);
+    }
+
+    @Test
+    public void testErrorPropagation() throws XrootdException, IOException {
+
+        var stageRequest = mockedFlushRequest();
+
+        var error = "/error/0000C9B4E3768770452E8B1B8E0232584872?error="
+              + Base64.getEncoder().encodeToString("some error".getBytes(StandardCharsets.UTF_8));
+
+        var buf = new ByteBufBuilder()
+              .withShort(1)    // stream id
+              .withShort(XrootdProtocol.kXR_query)
+              .withShort(XrootdProtocol.kXR_Qopaquf)
+              .withInt(-1) // fh, not used
+              .withInt(error.length())
+              .withZeros(6)
+              .withString(error, StandardCharsets.UTF_8)
+              .build();
+
+        var msg = new QueryRequest(buf);
+
+        handler.doOnQuery(ctx, msg);
+        verify(stageRequest).failed(anyInt(), any());
+    }
+
+    @Test
+    public void testCompletePropagationOnSuccess() throws XrootdException, IOException {
+
+        var stageRequest = mockedFlushRequest();
+
+        var success = "/success/0000C9B4E3768770452E8B1B8E0232584872?archiveid=31415926";
+
+        var buf = new ByteBufBuilder()
+              .withShort(1)    // stream id
+              .withShort(XrootdProtocol.kXR_query)
+              .withShort(XrootdProtocol.kXR_Qopaquf)
+              .withInt(-1) // fh, not used
+              .withInt(success.length())
+              .withZeros(6)
+              .withString(success, StandardCharsets.UTF_8)
+              .build();
+
+        var msg = new QueryRequest(buf);
+
+        handler.doOnQuery(ctx, msg);
+        var expectedUri = Set.of(URI.create("cta://test/0000C9B4E3768770452E8B1B8E0232584872?archiveid=31415926"));
+        verify(stageRequest).completed(expectedUri);
     }
 
     void waitToComplete() {
