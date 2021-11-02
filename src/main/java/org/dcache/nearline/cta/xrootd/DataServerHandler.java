@@ -297,10 +297,12 @@ public class DataServerHandler extends XrootdRequestHandler {
         try {
             var r = closeOpenFile(msg.getFileHandle());
             var file = getFile(r);
+            LOGGER.info("Closing file {}.", file);
             if (r instanceof StageRequest) {
                 ForkJoinPool.commonPool().execute(() -> {
                     try {
                         Checksum checksum = calculateChecksum(file);
+                        LOGGER.info("Files {} checksum after restore: {}", file, checksum);
                         r.completed(Set.of(checksum));
                     } catch (IOException e) {
                         LOGGER.error("Post-restore checksum calculation of {} failed: {}", file,
