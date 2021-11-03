@@ -1,6 +1,8 @@
 package org.dcache.nearline.cta.xrootd;
 
 import static java.io.File.createTempFile;
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
@@ -16,7 +18,6 @@ import io.netty.channel.ChannelHandlerContext;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
-import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.Set;
 import java.util.UUID;
@@ -35,6 +36,7 @@ import org.dcache.xrootd.protocol.XrootdProtocol;
 import org.dcache.xrootd.protocol.messages.CloseRequest;
 import org.dcache.xrootd.protocol.messages.OpenRequest;
 import org.dcache.xrootd.protocol.messages.QueryRequest;
+import org.dcache.xrootd.protocol.messages.StatRequest;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -62,7 +64,7 @@ public class DataServerHandlerTest {
               .withShort(0)
               .withShort(XrootdProtocol.kXR_open_read | XrootdProtocol.kXR_retstat)
               .withZeros(12) // padding
-              .withString("0000C9B4E3768770452E8B1B8E0232584872", StandardCharsets.UTF_8)
+              .withString("0000C9B4E3768770452E8B1B8E0232584872", UTF_8)
               .build();
 
         OpenRequest msg = new OpenRequest(buf);
@@ -81,7 +83,7 @@ public class DataServerHandlerTest {
               .withShort(0)
               .withShort(XrootdProtocol.kXR_delete | XrootdProtocol.kXR_new)
               .withZeros(12) // padding
-              .withString("0000C9B4E3768770452E8B1B8E0232584872", StandardCharsets.UTF_8)
+              .withString("0000C9B4E3768770452E8B1B8E0232584872", UTF_8)
               .build();
 
         OpenRequest msg = new OpenRequest(buf);
@@ -100,7 +102,7 @@ public class DataServerHandlerTest {
               .withShort(1)    // stream id
               .withShort(XrootdProtocol.kXR_open)
               .withZeros(16) // padding
-              .withString("0000C9B4E3768770452E8B1B8E0232584872", StandardCharsets.UTF_8)
+              .withString("0000C9B4E3768770452E8B1B8E0232584872", UTF_8)
               .withShort(0)
               .withShort(XrootdProtocol.kXR_open_read)
               .build();
@@ -119,7 +121,7 @@ public class DataServerHandlerTest {
               .withShort(1)    // stream id
               .withShort(XrootdProtocol.kXR_open)
               .withZeros(16) // padding
-              .withString("0000C9B4E3768770452E8B1B8E0232584872", StandardCharsets.UTF_8)
+              .withString("0000C9B4E3768770452E8B1B8E0232584872", UTF_8)
               .withShort(0)
               .withShort(XrootdProtocol.kXR_open_read)
               .build();
@@ -155,7 +157,7 @@ public class DataServerHandlerTest {
               .withShort(0)
               .withShort(XrootdProtocol.kXR_delete | XrootdProtocol.kXR_new)
               .withZeros(12) // padding
-              .withString("0000C9B4E3768770452E8B1B8E0232584872", StandardCharsets.UTF_8)
+              .withString("0000C9B4E3768770452E8B1B8E0232584872", UTF_8)
               .build();
 
         var openMsg = new OpenRequest(buf);
@@ -176,13 +178,126 @@ public class DataServerHandlerTest {
         verify(stageRequest).completed(any());
     }
 
+    @Test
+    public void testStatByOpenFileStage() throws XrootdException, IOException, InterruptedException {
+
+        var flushRequest = mockedFlushRequest();
+
+        var buf = new ByteBufBuilder()
+              .withShort(1)    // stream id
+              .withShort(XrootdProtocol.kXR_open)
+              .withShort(0)
+              .withShort(XrootdProtocol.kXR_open_read | XrootdProtocol.kXR_retstat)
+              .withZeros(12) // padding
+              .withString("0000C9B4E3768770452E8B1B8E0232584872", UTF_8)
+              .build();
+
+        var openMsg = new OpenRequest(buf);
+
+        var openResponse = handler.doOnOpen(ctx, openMsg);
+
+        assertNotNull("file status is not returned", openResponse.getFileStatus());
+
+        buf = new ByteBufBuilder()
+              .withShort(1)    // stream id
+              .withShort(XrootdProtocol.kXR_stat)
+              .withByte(0)     // opts
+              .withZeros(11)
+              .withInt(openResponse.getFileHandle()) // fh
+              .withString("", UTF_8) // path
+              .build();
+
+        var statMgs = new StatRequest(buf);
+        handler.doOnStat(ctx, statMgs);
+    }
+
+    @Test(expected = XrootdException.class)
+    public void testStatWithoutOpen() throws XrootdException, IOException, InterruptedException {
+
+        var flushRequest = mockedFlushRequest();
+
+        var buf = new ByteBufBuilder()
+              .withShort(1)    // stream id
+              .withShort(XrootdProtocol.kXR_stat)
+              .withByte(0)     // opts
+              .withZeros(11)
+              .withInt(0) // fh
+              .withString("", UTF_8) // path
+              .build();
+
+        var statMgs = new StatRequest(buf);
+        handler.doOnStat(ctx, statMgs);
+    }
+
+    @Test
+    public void testStatByPath() throws XrootdException, IOException, InterruptedException {
+
+        var flushRequest = mockedFlushRequest();
+
+        var buf = new ByteBufBuilder()
+              .withShort(1)    // stream id
+              .withShort(XrootdProtocol.kXR_open)
+              .withShort(0)
+              .withShort(XrootdProtocol.kXR_open_read)
+              .withZeros(12) // padding
+              .withString("0000C9B4E3768770452E8B1B8E0232584872", UTF_8)
+              .build();
+
+        var openMsg = new OpenRequest(buf);
+
+        var openResponse = handler.doOnOpen(ctx, openMsg);
+
+        buf = new ByteBufBuilder()
+              .withShort(1)    // stream id
+              .withShort(XrootdProtocol.kXR_stat)
+              .withByte(0)     // opts
+              .withZeros(11)
+              .withInt(-1) // fh
+              .withString("0000C9B4E3768770452E8B1B8E0232584872", UTF_8) // path
+              .build();
+
+        var statMgs = new StatRequest(buf);
+        handler.doOnStat(ctx, statMgs);
+    }
+
+    @Test(expected = XrootdException.class)
+    public void testStatByInvalidPath() throws XrootdException, IOException, InterruptedException {
+
+        var flushRequest = mockedFlushRequest();
+
+        var buf = new ByteBufBuilder()
+              .withShort(1)    // stream id
+              .withShort(XrootdProtocol.kXR_open)
+              .withShort(0)
+              .withShort(XrootdProtocol.kXR_open_read)
+              .withZeros(12) // padding
+              .withString("0000C9B4E3768770452E8B1B8E0232584872", UTF_8)
+              .build();
+
+        var openMsg = new OpenRequest(buf);
+
+        var openResponse = handler.doOnOpen(ctx, openMsg);
+
+        buf = new ByteBufBuilder()
+              .withShort(1)    // stream id
+              .withShort(XrootdProtocol.kXR_stat)
+              .withByte(0)     // opts
+              .withZeros(11)
+              .withInt(-1) // fh
+              .withString("xxx", UTF_8) // path
+              .build();
+
+        var statMgs = new StatRequest(buf);
+        handler.doOnStat(ctx, statMgs);
+    }
+
     @Test(expected = XrootdException.class)
     public void testFailErrorPropagationOnWrongRequest() throws XrootdException, IOException {
 
         var stageRequest = mockedFlushRequest();
 
         var error = "/error/xxxx?error="
-              + Base64.getEncoder().encodeToString("some error".getBytes(StandardCharsets.UTF_8));
+              + Base64.getEncoder().encodeToString("some error".getBytes(UTF_8));
 
         var buf = new ByteBufBuilder()
               .withShort(1)    // stream id
@@ -191,7 +306,7 @@ public class DataServerHandlerTest {
               .withInt(-1) // fh, not used
               .withInt(error.length())
               .withZeros(6)
-              .withString(error, StandardCharsets.UTF_8)
+              .withString(error, UTF_8)
               .build();
 
         var msg = new QueryRequest(buf);
@@ -205,7 +320,7 @@ public class DataServerHandlerTest {
         var stageRequest = mockedFlushRequest();
 
         var error = "/foo/0000C9B4E3768770452E8B1B8E0232584872?error="
-              + Base64.getEncoder().encodeToString("some error".getBytes(StandardCharsets.UTF_8));
+              + Base64.getEncoder().encodeToString("some error".getBytes(UTF_8));
 
         var buf = new ByteBufBuilder()
               .withShort(1)    // stream id
@@ -214,7 +329,7 @@ public class DataServerHandlerTest {
               .withInt(-1) // fh, not used
               .withInt(error.length())
               .withZeros(6)
-              .withString(error, StandardCharsets.UTF_8)
+              .withString(error, UTF_8)
               .build();
 
         var msg = new QueryRequest(buf);
@@ -228,7 +343,7 @@ public class DataServerHandlerTest {
         var stageRequest = mockedFlushRequest();
 
         var error = "/error/0000C9B4E3768770452E8B1B8E0232584872?error="
-              + Base64.getEncoder().encodeToString("some error".getBytes(StandardCharsets.UTF_8));
+              + Base64.getEncoder().encodeToString("some error".getBytes(UTF_8));
 
         var buf = new ByteBufBuilder()
               .withShort(1)    // stream id
@@ -237,7 +352,7 @@ public class DataServerHandlerTest {
               .withInt(-1) // fh, not used
               .withInt(error.length())
               .withZeros(6)
-              .withString(error, StandardCharsets.UTF_8)
+              .withString(error, UTF_8)
               .build();
 
         var msg = new QueryRequest(buf);
@@ -260,7 +375,7 @@ public class DataServerHandlerTest {
               .withInt(-1) // fh, not used
               .withInt(success.length())
               .withZeros(6)
-              .withString(success, StandardCharsets.UTF_8)
+              .withString(success, UTF_8)
               .build();
 
         var msg = new QueryRequest(buf);
@@ -284,7 +399,7 @@ public class DataServerHandlerTest {
               .withInt(-1) // fh, not used
               .withInt(success.length())
               .withZeros(6)
-              .withString(success, StandardCharsets.UTF_8)
+              .withString(success, UTF_8)
               .build();
 
         var msg = new QueryRequest(buf);
