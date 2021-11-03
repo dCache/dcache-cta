@@ -85,7 +85,7 @@ queue define class -expire=0 -pending=0 -total=0 -open <hsmType> *
 cta-instance-name | The dCache instance name configured in CTA | yes | -
 cta-frontend-addr | The CTA `cta-dcache` endpoint | yes | -
 cta-user | The dCache instance associated user in CTA | yes | -
-cta-user | The dCache instance associated group in CTA | yes | -
+cta-group | The dCache instance associated group in CTA | yes | -
 io-endpoint | The hostname or IP offered by dCache for IO by CTA | no | `hostname`
 io-port | The TCP port offered by dCache for IO by CTA | no | -
 
