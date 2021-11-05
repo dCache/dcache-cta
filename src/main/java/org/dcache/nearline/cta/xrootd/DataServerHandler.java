@@ -24,7 +24,6 @@ import static org.dcache.xrootd.protocol.XrootdProtocol.kXR_NotFound;
 import static org.dcache.xrootd.protocol.XrootdProtocol.kXR_Qopaquf;
 import static org.dcache.xrootd.protocol.XrootdProtocol.kXR_Unsupported;
 import static org.dcache.xrootd.protocol.XrootdProtocol.kXR_isDir;
-import static org.dcache.xrootd.protocol.XrootdProtocol.kXR_isDirectory;
 import static org.dcache.xrootd.protocol.XrootdProtocol.kXR_other;
 import static org.dcache.xrootd.protocol.XrootdProtocol.kXR_readable;
 import static org.dcache.xrootd.protocol.XrootdProtocol.kXR_writable;
