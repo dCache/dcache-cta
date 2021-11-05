@@ -187,9 +187,6 @@ public class DataServerHandler extends XrootdRequestHandler {
         try {
             NearlineRequest r = getIORequest(msg.getPath());
             var file = getFile(r);
-            if (file.isDirectory()) {
-                throw new XrootdException(kXR_isDirectory, "Not a file: " + file);
-            }
 
             RandomAccessFile raf;
             if (msg.isReadWrite() || msg.isNew() || msg.isDelete()) {
