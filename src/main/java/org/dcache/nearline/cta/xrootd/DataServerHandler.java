@@ -189,12 +189,20 @@ public class DataServerHandler extends XrootdRequestHandler {
 
             RandomAccessFile raf;
             if (msg.isReadWrite() || msg.isNew() || msg.isDelete()) {
+                if (!(r instanceof StageRequest)) {
+                    throw new XrootdException(kXR_ArgInvalid,
+                          "An attempt to open-for-read for stage requests");
+                }
                 LOGGER.info("Opening {} for writing", file);
                 raf = new RandomAccessFile(file, "rw");
                 if (msg.isDelete()) {
                     raf.setLength(0);
                 }
             } else {
+                if (!(r instanceof FlushRequest)) {
+                    throw new XrootdException(kXR_ArgInvalid,
+                          "An attempt to open-for-write for flush requests");
+                }
                 LOGGER.info("Opening {} for reading.", file);
                 raf = new RandomAccessFile(file, "r");
             }

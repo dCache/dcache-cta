@@ -101,10 +101,49 @@ public class DataServerHandlerTest {
         var buf = new ByteBufBuilder()
               .withShort(1)    // stream id
               .withShort(XrootdProtocol.kXR_open)
-              .withZeros(16) // padding
-              .withString("0000C9B4E3768770452E8B1B8E0232584872", UTF_8)
               .withShort(0)
               .withShort(XrootdProtocol.kXR_open_read)
+              .withZeros(12) // padding
+              .withString("0000C9B4E3768770452E8B1B8E0232584872", UTF_8)
+              .build();
+
+        OpenRequest msg = new OpenRequest(buf);
+
+        handler.doOnOpen(ctx, msg);
+    }
+
+    @Test(expected = XrootdException.class)
+    public void testOpenForWriteFlushRequest() throws XrootdException, IOException {
+
+        mockedFlushRequest();
+
+        var buf = new ByteBufBuilder()
+              .withShort(1)    // stream id
+              .withShort(XrootdProtocol.kXR_open)
+              .withShort(0)
+              .withShort(XrootdProtocol.kXR_delete | XrootdProtocol.kXR_new
+                    | XrootdProtocol.kXR_writable)
+              .withZeros(12) // padding
+              .withString("0000C9B4E3768770452E8B1B8E0232584872", UTF_8)
+              .build();
+
+        OpenRequest msg = new OpenRequest(buf);
+
+        handler.doOnOpen(ctx, msg);
+    }
+
+    @Test(expected = XrootdException.class)
+    public void testOpenForReadForStageRequest() throws XrootdException, IOException {
+
+        mockedStageRequest();
+
+        var buf = new ByteBufBuilder()
+              .withShort(1)    // stream id
+              .withShort(XrootdProtocol.kXR_open)
+              .withShort(0)
+              .withShort(XrootdProtocol.kXR_open_read)
+              .withZeros(12) // padding
+              .withString("0000C9B4E3768770452E8B1B8E0232584872", UTF_8)
               .build();
 
         OpenRequest msg = new OpenRequest(buf);
@@ -120,10 +159,10 @@ public class DataServerHandlerTest {
         var buf = new ByteBufBuilder()
               .withShort(1)    // stream id
               .withShort(XrootdProtocol.kXR_open)
-              .withZeros(16) // padding
-              .withString("0000C9B4E3768770452E8B1B8E0232584872", UTF_8)
               .withShort(0)
               .withShort(XrootdProtocol.kXR_open_read)
+              .withZeros(12) // padding
+              .withString("0000C9B4E3768770452E8B1B8E0232584872", UTF_8)
               .build();
 
         new File(stageRequest.getReplicaUri()).delete();
@@ -179,7 +218,8 @@ public class DataServerHandlerTest {
     }
 
     @Test
-    public void testStatByOpenFileStage() throws XrootdException, IOException, InterruptedException {
+    public void testStatByOpenFileStage()
+          throws XrootdException, IOException, InterruptedException {
 
         var flushRequest = mockedFlushRequest();
 
@@ -381,7 +421,8 @@ public class DataServerHandlerTest {
         var msg = new QueryRequest(buf);
 
         handler.doOnQuery(ctx, msg);
-        var expectedUri = Set.of(URI.create("cta://test/0000C9B4E3768770452E8B1B8E0232584872?archiveid=31415926"));
+        var expectedUri = Set.of(
+              URI.create("cta://test/0000C9B4E3768770452E8B1B8E0232584872?archiveid=31415926"));
         verify(stageRequest).completed(expectedUri);
     }
 
