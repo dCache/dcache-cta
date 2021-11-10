@@ -327,6 +327,21 @@ public class CtaNearlineStorageTest {
     }
 
     @Test
+    public void testPendingRequestDecOnFlushComplete() {
+
+        var request = mockedFlushRequest();
+        driver = new CtaNearlineStorage("foo", "bar");
+        driver.configure(drvConfig);
+        driver.start();
+
+        driver.flush(Set.of(request));
+
+        cta.waitToReply();
+        driver.getRequest("0000C9B4E3768770452E8B1B8E0232584872").completed(Set.of());
+        assertEquals("pending request count not zero", 0, driver.getPendingRequestsCount());
+    }
+
+    @Test
     public void testPendingRequestDecOnStageFailedV1() {
 
         var request = mockedStageRequest();
