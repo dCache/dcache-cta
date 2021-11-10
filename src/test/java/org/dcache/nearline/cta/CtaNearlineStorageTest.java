@@ -1,6 +1,11 @@
 package org.dcache.nearline.cta;
 
-import static org.dcache.nearline.cta.CtaNearlineStorage.*;
+import static org.dcache.nearline.cta.CtaNearlineStorage.CTA_ENDPOINT;
+import static org.dcache.nearline.cta.CtaNearlineStorage.CTA_GROUP;
+import static org.dcache.nearline.cta.CtaNearlineStorage.CTA_INSTANCE;
+import static org.dcache.nearline.cta.CtaNearlineStorage.CTA_USER;
+import static org.dcache.nearline.cta.CtaNearlineStorage.IO_PORT;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -289,6 +294,111 @@ public class CtaNearlineStorageTest {
         waitToComplete();
 
         verify(request).failed(any());
+    }
+
+    @Test
+    public void testPendingRequestIncrementOnStageSubmit() {
+
+        var request = mockedStageRequest();
+        driver = new CtaNearlineStorage("foo", "bar");
+        driver.configure(drvConfig);
+        driver.start();
+
+        driver.stage(Set.of(request));
+
+        cta.waitToReply();
+        assertEquals("unexpected pending request queue size", 1,
+              driver.getPendingRequestsCount());
+    }
+
+    @Test
+    public void testPendingRequestDecOnStageComplete() {
+
+        var request = mockedStageRequest();
+        driver = new CtaNearlineStorage("foo", "bar");
+        driver.configure(drvConfig);
+        driver.start();
+
+        driver.stage(Set.of(request));
+
+        cta.waitToReply();
+        driver.getRequest("0000C9B4E3768770452E8B1B8E0232584872").completed(Set.of());
+        assertEquals("pending request count not zero", 0, driver.getPendingRequestsCount());
+    }
+
+    @Test
+    public void testPendingRequestDecOnStageFailedV1() {
+
+        var request = mockedStageRequest();
+        driver = new CtaNearlineStorage("foo", "bar");
+        driver.configure(drvConfig);
+        driver.start();
+
+        driver.stage(Set.of(request));
+
+        cta.waitToReply();
+        driver.getRequest("0000C9B4E3768770452E8B1B8E0232584872").failed(new Exception());
+        assertEquals("pending request count not zero", 0, driver.getPendingRequestsCount());
+    }
+
+    @Test
+    public void testPendingRequestDecOnStageFailedV2() {
+
+        var request = mockedStageRequest();
+        driver = new CtaNearlineStorage("foo", "bar");
+        driver.configure(drvConfig);
+        driver.start();
+
+        driver.stage(Set.of(request));
+
+        cta.waitToReply();
+        driver.getRequest("0000C9B4E3768770452E8B1B8E0232584872").failed(1, "foo");
+        assertEquals("pending request count not zero", 0, driver.getPendingRequestsCount());
+    }
+
+    @Test
+    public void testPendingRequestIncrementOnFlushSubmit() {
+
+        var request = mockedFlushRequest();
+        driver = new CtaNearlineStorage("foo", "bar");
+        driver.configure(drvConfig);
+        driver.start();
+
+        driver.flush(Set.of(request));
+
+        cta.waitToReply();
+        assertEquals("unexpected pending request queue size", 1,
+              driver.getPendingRequestsCount());
+    }
+
+    @Test
+    public void testPendingRequestDecOnFlushFailedV1() {
+
+        var request = mockedFlushRequest();
+        driver = new CtaNearlineStorage("foo", "bar");
+        driver.configure(drvConfig);
+        driver.start();
+
+        driver.flush(Set.of(request));
+
+        cta.waitToReply();
+        driver.getRequest("0000C9B4E3768770452E8B1B8E0232584872").failed(new Exception());
+        assertEquals("pending request count not zero", 0, driver.getPendingRequestsCount());
+    }
+
+    @Test
+    public void testPendingRequestDecOnFlushFailedV2() {
+
+        var request = mockedFlushRequest();
+        driver = new CtaNearlineStorage("foo", "bar");
+        driver.configure(drvConfig);
+        driver.start();
+
+        driver.flush(Set.of(request));
+
+        cta.waitToReply();
+        driver.getRequest("0000C9B4E3768770452E8B1B8E0232584872").failed(1, "foo");
+        assertEquals("pending request count not zero", 0, driver.getPendingRequestsCount());
     }
 
     void waitToComplete() {

@@ -9,6 +9,7 @@ import io.grpc.netty.shaded.io.grpc.netty.NettyServerBuilder;
 import io.grpc.stub.StreamObserver;
 import java.io.IOException;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeUnit;
 import org.dcache.cta.rpc.ArchiveRequest;
 import org.dcache.cta.rpc.ArchiveResponse;
 import org.dcache.cta.rpc.CtaRpcGrpc;
@@ -103,6 +104,14 @@ public class DummyCta {
             } else {
                 responseObserver.onError(new StatusException(Status.INTERNAL));
             }
+        }
+    }
+
+    public void waitToReply() throws AssertionError {
+        try {
+            TimeUnit.SECONDS.sleep(1);
+        } catch (InterruptedException e) {
+            throw new AssertionError("Should neve happen", e);
         }
     }
 }

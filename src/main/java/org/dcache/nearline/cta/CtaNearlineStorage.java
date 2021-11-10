@@ -2,6 +2,7 @@ package org.dcache.nearline.cta;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Throwables;
 import com.google.common.net.HostAndPort;
 import com.google.protobuf.Empty;
@@ -12,9 +13,11 @@ import io.grpc.ManagedChannelBuilder;
 import io.grpc.stub.StreamObserver;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.URI;
 import java.net.UnknownHostException;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 
 import java.util.concurrent.ConcurrentHashMap;
@@ -30,6 +33,7 @@ import org.dcache.pool.nearline.spi.NearlineRequest;
 import org.dcache.pool.nearline.spi.NearlineStorage;
 import org.dcache.pool.nearline.spi.RemoveRequest;
 import org.dcache.pool.nearline.spi.StageRequest;
+import org.dcache.util.Checksum;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -115,7 +119,34 @@ public class CtaNearlineStorage implements NearlineStorage {
      */
     @Override
     public void flush(Iterable<FlushRequest> requests) {
-        for (var r : requests) {
+        for (var fr : requests) {
+
+            var id = fr.getFileAttributes().getPnfsId().toString();
+
+            var r = new ForwardingFlushRequest() {
+                @Override
+                protected FlushRequest delegate() {
+                    return fr;
+                }
+
+                @Override
+                public void failed(Exception e) {
+                    pendingRequests.remove(id);
+                    super.failed(e);
+                }
+
+                @Override
+                public void failed(int i, String s) {
+                    pendingRequests.remove(id);
+                    super.failed(i, s);
+                }
+
+                @Override
+                public void completed(Set<URI> uris) {
+                    pendingRequests.remove(id);
+                    super.completed(uris);
+                }
+            };
 
             try {
                 r.activate().get();
@@ -126,8 +157,6 @@ public class CtaNearlineStorage implements NearlineStorage {
             }
 
             var ar = ctaRequestFactory.valueOf(r);
-            var id = r.getFileAttributes().getPnfsId().toString();
-
             cta.archive(ar, new StreamObserver<>() {
 
                 @Override
@@ -163,7 +192,33 @@ public class CtaNearlineStorage implements NearlineStorage {
      */
     @Override
     public void stage(Iterable<StageRequest> requests) {
-        for (var r : requests) {
+        for (var sr : requests) {
+
+            var id = sr.getFileAttributes().getPnfsId().toString();
+            var r = new ForwardingStageRequest() {
+                @Override
+                protected StageRequest delegate() {
+                    return sr;
+                }
+
+                @Override
+                public void failed(Exception e) {
+                    pendingRequests.remove(id);
+                    super.failed(e);
+                }
+
+                @Override
+                public void failed(int i, String s) {
+                    pendingRequests.remove(id);
+                    super.failed(i, s);
+                }
+
+                @Override
+                public void completed(Set<Checksum> checksums) {
+                    pendingRequests.remove(id);
+                    super.completed(checksums);
+                }
+            };
 
             try {
                 r.activate().get();
@@ -176,7 +231,6 @@ public class CtaNearlineStorage implements NearlineStorage {
             }
 
             var rr = ctaRequestFactory.valueOf(r);
-            var id = r.getFileAttributes().getPnfsId().toString();
 
             cta.retrieve(rr, new StreamObserver<>() {
                 @Override
@@ -309,23 +363,23 @@ public class CtaNearlineStorage implements NearlineStorage {
 
         cta = CtaRpcGrpc.newStub(channel);
         channel.notifyWhenStateChanged(ConnectivityState.CONNECTING, () ->
-            cta.version(Empty.newBuilder().build(), new StreamObserver<>() {
-                @Override
-                public void onNext(Version version) {
-                    LOGGER.info("Connected to CTA version {} : {}", version.getCtaVersion(),
-                          version.getXrootdSsiProtobufInterfaceVersion());
-                }
+              cta.version(Empty.newBuilder().build(), new StreamObserver<>() {
+                  @Override
+                  public void onNext(Version version) {
+                      LOGGER.info("Connected to CTA version {} : {}", version.getCtaVersion(),
+                            version.getXrootdSsiProtobufInterfaceVersion());
+                  }
 
-                @Override
-                public void onError(Throwable t) {
-                    LOGGER.error("Failed to get CTA version {}", t.getMessage());
-                }
+                  @Override
+                  public void onError(Throwable t) {
+                      LOGGER.error("Failed to get CTA version {}", t.getMessage());
+                  }
 
-                @Override
-                public void onCompleted() {
+                  @Override
+                  public void onCompleted() {
 
-                }
-            })
+                  }
+              })
         );
 
         ctaRequestFactory = new RequestsFactory(instanceName, ctaUser, ctaGroup, dataMover);
@@ -346,5 +400,15 @@ public class CtaNearlineStorage implements NearlineStorage {
         if (channel != null) {
             channel.shutdown();
         }
+    }
+
+    @VisibleForTesting
+    int getPendingRequestsCount() {
+        return pendingRequests.size();
+    }
+
+    @VisibleForTesting
+    NearlineRequest getRequest(String id) {
+        return pendingRequests.get(id);
     }
 }
