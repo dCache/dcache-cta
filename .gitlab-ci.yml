@@ -1,0 +1,70 @@
+stages:
+  - build
+  - package
+  - publish
+#  - visualize
+
+variables:
+  MAVEN_CLI_OPTS: "--batch-mode --errors --fail-at-end --show-version -DinstallAtEnd=true -DdeployAtEnd=true  -Dmaven.repo.local=.m2/repository"
+  REPO_NAME: dcache-cta
+
+# Cache downloaded dependencies and plugins between builds.
+# To keep cache across branches add 'key: "$CI_JOB_NAME"'
+cache:
+  key:
+    files:
+      - pom.xml
+    prefix: "$CI_JOB_NAME"
+  paths:
+    - ./.m2/repository
+
+package:
+  stage: package
+  image: maven:3.6.3-openjdk-11
+  script:
+    - mvn $MAVEN_CLI_OPTS clean -DskipTests package
+  artifacts:
+    name: "$CI_JOB_NAME-$CI_COMMIT_REF_NAME"
+    paths:
+      - "target/dcache-cta*.tar.gz"
+
+publish:
+  only:
+    - tags
+  stage: publish
+  image: centos:8
+  script:
+    - yum install -y curl
+    - PACKAGE=$(ls -1 target/dcache-cta*.tar.gz)
+    - PACKAGENAME=$(basename ${PACKAGE})
+    - VERSION_1=${PACKAGENAME##*-}
+    - VERSION=${VERSION_1%.tar.gz}
+    - 'curl --header "JOB-TOKEN: $CI_JOB_TOKEN" --upload-file ${PACKAGE} ${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/${CI_PROJECT_NAME}/v${VERSION}/${PACKAGENAME}'
+
+test:
+  stage: build
+  image: maven:3.6.3-openjdk-11
+  script:
+    - mvn $MAVEN_CLI_OPTS clean org.jacoco:jacoco-maven-plugin:prepare-agent test jacoco:report
+
+  artifacts:
+    reports:
+      junit:
+        - "target/surefire-reports/TEST-*.xml"
+        - "target/failsafe-reports/TEST-*.xml"
+    paths:
+      - "target/site/jacoco/jacoco.xml"
+
+#coverage-jdk11:
+#  # Must be in a stage later than test-jdk11's stage.
+#  # The `visualize` stage does not exist by default.
+#  # Please define it first, or choose an existing stage like `deploy`.
+#  stage: visualize
+#  image: registry.gitlab.com/haynes/jacoco2cobertura:1.0.7
+#  script:
+#    - 'python /opt/cover2cover.py target/site/jacoco/jacoco.xml src/main/java > target/site/cobertura.xml'
+#    - 'python /opt/source2filename.py target/site/cobertura.xml'
+#  needs: ["test"]
+#  artifacts:
+#    reports:
+#      cobertura: target/site/cobertura.xml
