@@ -42,8 +42,8 @@ public class DataMover extends AbstractIdleService implements CtaTransportProvid
 
     private static final Logger LOGGER = LoggerFactory.getLogger(DataMover.class);
 
-    private ServerBootstrap server;
-    private CompletableFuture<Void> cf = new CompletableFuture<>();
+    private final ServerBootstrap server;
+    private final CompletableFuture<Void> cf = new CompletableFuture<>();
 
     private final EventLoopGroup bossGroup;
     private final EventLoopGroup workerGroup;
