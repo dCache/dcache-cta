@@ -79,7 +79,7 @@ public class DataMover extends AbstractIdleService implements CtaTransportProvid
                   .localAddress(sa)
                   .childOption(ChannelOption.TCP_NODELAY, true)
                   .childOption(ChannelOption.SO_KEEPALIVE, true)
-                  .childHandler(new XrootChallenInitializer());
+                  .childHandler(new XrootChannelInitializer());
         } catch (Exception e) {
             Throwables.throwIfUnchecked(e);
             throw new RuntimeException(e);
@@ -120,12 +120,12 @@ public class DataMover extends AbstractIdleService implements CtaTransportProvid
         return "Xrootd CTA data mover";
     }
 
-    private class XrootChallenInitializer extends ChannelInitializer<Channel> {
+    private class XrootChannelInitializer extends ChannelInitializer<Channel> {
 
         public final List<ChannelHandlerFactory> channelHandlerFactories;
         private final ServiceLoader<ChannelHandlerProvider> channelHandlerProviders;
 
-        XrootChallenInitializer() throws Exception {
+        XrootChannelInitializer() throws Exception {
 
             var pluginLoader = this.getClass().getClassLoader();
             XrootdAuthenticationHandlerProvider.setPluginClassLoader(pluginLoader);
@@ -148,7 +148,7 @@ public class DataMover extends AbstractIdleService implements CtaTransportProvid
             pipeline.addLast("decoder", new XrootdDecoder());
 
             if (LOGGER.isDebugEnabled()) {
-                pipeline.addLast("logger", new LoggingHandler(XrootChallenInitializer.class));
+                pipeline.addLast("logger", new LoggingHandler(XrootChannelInitializer.class));
             }
 
             for (ChannelHandlerFactory factory : channelHandlerFactories) {
