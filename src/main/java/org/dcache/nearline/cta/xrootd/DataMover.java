@@ -48,7 +48,7 @@ public class DataMover extends AbstractIdleService implements CtaTransportProvid
     private final EventLoopGroup bossGroup;
     private final EventLoopGroup workerGroup;
 
-    private final ConcurrentMap<String, ? extends NearlineRequest> pendingRequests;
+    private final ConcurrentMap<String, PendingRequest> pendingRequests;
 
     /**
      * Driver configured hsm name.
@@ -63,7 +63,7 @@ public class DataMover extends AbstractIdleService implements CtaTransportProvid
     private volatile String url;
 
     public DataMover(String type, String name, InetSocketAddress sa,
-          ConcurrentMap<String, ? extends NearlineRequest> pendingRequests) {
+          ConcurrentMap<String, PendingRequest> pendingRequests) {
 
         hsmType = type;
         hsmName = name;

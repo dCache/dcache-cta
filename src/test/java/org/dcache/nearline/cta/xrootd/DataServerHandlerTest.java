@@ -18,6 +18,7 @@ import io.netty.channel.ChannelHandlerContext;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
+import java.time.Instant;
 import java.util.Base64;
 import java.util.Set;
 import java.util.UUID;
@@ -44,7 +45,7 @@ public class DataServerHandlerTest {
 
 
     private DataServerHandler handler;
-    private ConcurrentMap<String, NearlineRequest> requests;
+    private ConcurrentMap<String, PendingRequest> requests;
     private ChannelHandlerContext ctx;
     private CompletableFuture<Void> waitForComplete;
 
@@ -482,7 +483,7 @@ public class DataServerHandlerTest {
 
         when(request.getReplicaUri()).thenReturn(f.toURI());
 
-        requests.put("0000C9B4E3768770452E8B1B8E0232584872", request);
+        requests.put("0000C9B4E3768770452E8B1B8E0232584872", new PendingRequest(Instant.now(), request));
 
         waitForComplete = new CompletableFuture<>();
 
@@ -524,7 +525,7 @@ public class DataServerHandlerTest {
 
         when(request.getReplicaUri()).thenReturn(f.toURI());
 
-        requests.put("0000C9B4E3768770452E8B1B8E0232584872", request);
+        requests.put("0000C9B4E3768770452E8B1B8E0232584872", new PendingRequest(Instant.now(), request));
 
         return request;
     }

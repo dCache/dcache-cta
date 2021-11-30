@@ -18,7 +18,7 @@ import org.junit.Test;
 public class DataMoverTest {
 
     private DataMover dataMover;
-    private ConcurrentMap<String, NearlineRequest> requests;
+    private ConcurrentMap<String, PendingRequest> requests;
 
     @Before
     public void setUp() throws UnknownHostException {

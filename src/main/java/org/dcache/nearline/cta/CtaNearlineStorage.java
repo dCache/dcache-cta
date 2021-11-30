@@ -15,6 +15,7 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.UnknownHostException;
+import java.time.Instant;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -28,6 +29,7 @@ import org.dcache.cta.rpc.CtaRpcGrpc;
 import org.dcache.cta.rpc.CtaRpcGrpc.CtaRpcStub;
 import org.dcache.cta.rpc.RetrieveResponse;
 import org.dcache.nearline.cta.xrootd.DataMover;
+import org.dcache.nearline.cta.xrootd.PendingRequest;
 import org.dcache.pool.nearline.spi.FlushRequest;
 import org.dcache.pool.nearline.spi.NearlineRequest;
 import org.dcache.pool.nearline.spi.NearlineStorage;
@@ -101,7 +103,7 @@ public class CtaNearlineStorage implements NearlineStorage {
     /**
      * Requests submitted to CTA.
      */
-    private final ConcurrentMap<String, NearlineRequest> pendingRequests = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, PendingRequest> pendingRequests = new ConcurrentHashMap<>();
 
     public CtaNearlineStorage(String type, String name) {
 
@@ -179,7 +181,7 @@ public class CtaNearlineStorage implements NearlineStorage {
 
                 @Override
                 public void onCompleted() {
-                    pendingRequests.put(id, r);
+                    pendingRequests.put(id, new PendingRequest(Instant.now(), r));
                 }
             });
         }
@@ -252,7 +254,7 @@ public class CtaNearlineStorage implements NearlineStorage {
 
                 @Override
                 public void onCompleted() {
-                    pendingRequests.put(id, r);
+                    pendingRequests.put(id, new PendingRequest(Instant.now(), r));
                 }
             });
         }
@@ -408,7 +410,7 @@ public class CtaNearlineStorage implements NearlineStorage {
     }
 
     @VisibleForTesting
-    NearlineRequest getRequest(String id) {
+    PendingRequest getRequest(String id) {
         return pendingRequests.get(id);
     }
 }

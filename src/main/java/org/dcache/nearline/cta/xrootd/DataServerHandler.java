@@ -133,7 +133,7 @@ public class DataServerHandler extends XrootdRequestHandler {
      */
     private final ReadWriteLock openFileLock = new ReentrantReadWriteLock();
 
-    private final ConcurrentMap<String, ? extends NearlineRequest> pendingRequests;
+    private final ConcurrentMap<String, PendingRequest> pendingRequests;
 
     /**
      * Driver configured hsm name.
@@ -146,7 +146,7 @@ public class DataServerHandler extends XrootdRequestHandler {
     private final String hsmType;
 
     public DataServerHandler(String type, String name,
-          ConcurrentMap<String, ? extends NearlineRequest> pendingRequests) {
+          ConcurrentMap<String, PendingRequest> pendingRequests) {
 
         hsmType = type;
         hsmName = name;
@@ -205,8 +205,11 @@ public class DataServerHandler extends XrootdRequestHandler {
           OpenRequest msg)
           throws XrootdException {
         try {
-            NearlineRequest r = getIORequest(msg.getPath());
+            var pr = getIORequest(msg.getPath());
+            var r = pr.getRequest();
             var file = getFile(r);
+
+            LOGGER.info("Request {} scheduling time: {}", file, TimeUtils.describe(Duration.between(Instant.now(), pr.getSubmitionTime()).abs()).orElse("-"));
 
             RandomAccessFile raf;
             if (msg.isReadWrite() || msg.isNew() || msg.isDelete()) {
@@ -374,10 +377,11 @@ public class DataServerHandler extends XrootdRequestHandler {
                 var uriQuery = url.getQuery();
 
                 var requestId = new File(url.getPath()).getName();
-                var r = pendingRequests.remove(requestId);
-                if (r == null) {
+                var pr = pendingRequests.remove(requestId);
+                if (pr == null) {
                     throw new XrootdException(kXR_ArgInvalid, "Invalid request id");
                 }
+                var r = pr.getRequest();
 
                 if (query.startsWith("/error/")) {
                     if (!uriQuery.startsWith(errorPrefix)) {
@@ -462,7 +466,7 @@ public class DataServerHandler extends XrootdRequestHandler {
         throw new XrootdException(kXR_FileNotOpen, "Invalid file descriptor");
     }
 
-    private NearlineRequest getIORequest(String path)
+    private PendingRequest getIORequest(String path)
           throws XrootdException {
 
         var r = pendingRequests.get(path);
@@ -526,7 +530,7 @@ public class DataServerHandler extends XrootdRequestHandler {
     }
 
     private FileStatus statusByPath(String path) throws XrootdException {
-        File file = getFile(getIORequest(path));
+        File file = getFile(getIORequest(path).getRequest());
         return statusByFile(file);
     }
 

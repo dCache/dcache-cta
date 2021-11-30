@@ -322,7 +322,7 @@ public class CtaNearlineStorageTest {
         driver.stage(Set.of(request));
 
         cta.waitToReply();
-        driver.getRequest("0000C9B4E3768770452E8B1B8E0232584872").completed(Set.of());
+        driver.getRequest("0000C9B4E3768770452E8B1B8E0232584872").getRequest().completed(Set.of());
         assertEquals("pending request count not zero", 0, driver.getPendingRequestsCount());
     }
 
@@ -337,7 +337,7 @@ public class CtaNearlineStorageTest {
         driver.flush(Set.of(request));
 
         cta.waitToReply();
-        driver.getRequest("0000C9B4E3768770452E8B1B8E0232584872").completed(Set.of());
+        driver.getRequest("0000C9B4E3768770452E8B1B8E0232584872").getRequest().completed(Set.of());
         assertEquals("pending request count not zero", 0, driver.getPendingRequestsCount());
     }
 
@@ -352,7 +352,7 @@ public class CtaNearlineStorageTest {
         driver.stage(Set.of(request));
 
         cta.waitToReply();
-        driver.getRequest("0000C9B4E3768770452E8B1B8E0232584872").failed(new Exception());
+        driver.getRequest("0000C9B4E3768770452E8B1B8E0232584872").getRequest().failed(new Exception());
         assertEquals("pending request count not zero", 0, driver.getPendingRequestsCount());
     }
 
@@ -367,7 +367,7 @@ public class CtaNearlineStorageTest {
         driver.stage(Set.of(request));
 
         cta.waitToReply();
-        driver.getRequest("0000C9B4E3768770452E8B1B8E0232584872").failed(1, "foo");
+        driver.getRequest("0000C9B4E3768770452E8B1B8E0232584872").getRequest().failed(1, "foo");
         assertEquals("pending request count not zero", 0, driver.getPendingRequestsCount());
     }
 
@@ -397,7 +397,7 @@ public class CtaNearlineStorageTest {
         driver.flush(Set.of(request));
 
         cta.waitToReply();
-        driver.getRequest("0000C9B4E3768770452E8B1B8E0232584872").failed(new Exception());
+        driver.getRequest("0000C9B4E3768770452E8B1B8E0232584872").getRequest().failed(new Exception());
         assertEquals("pending request count not zero", 0, driver.getPendingRequestsCount());
     }
 
@@ -412,7 +412,7 @@ public class CtaNearlineStorageTest {
         driver.flush(Set.of(request));
 
         cta.waitToReply();
-        driver.getRequest("0000C9B4E3768770452E8B1B8E0232584872").failed(1, "foo");
+        driver.getRequest("0000C9B4E3768770452E8B1B8E0232584872").getRequest().failed(1, "foo");
         assertEquals("pending request count not zero", 0, driver.getPendingRequestsCount());
     }
 
