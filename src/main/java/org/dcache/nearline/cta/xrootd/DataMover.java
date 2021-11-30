@@ -26,7 +26,7 @@ import java.util.ServiceLoader;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentMap;
 import org.dcache.nearline.cta.CtaTransportProvider;
-import org.dcache.pool.nearline.spi.NearlineRequest;
+import org.dcache.nearline.cta.PendingRequest;
 import org.dcache.xrootd.core.XrootdAuthenticationHandlerProvider;
 import org.dcache.xrootd.core.XrootdAuthorizationHandlerProvider;
 import org.dcache.xrootd.core.XrootdDecoder;

@@ -52,6 +52,7 @@ import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import org.dcache.nearline.cta.PendingRequest;
 import org.dcache.pool.nearline.spi.FlushRequest;
 import org.dcache.pool.nearline.spi.NearlineRequest;
 import org.dcache.pool.nearline.spi.StageRequest;

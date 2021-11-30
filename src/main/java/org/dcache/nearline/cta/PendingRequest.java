@@ -1,4 +1,4 @@
-package org.dcache.nearline.cta.xrootd;
+package org.dcache.nearline.cta;
 
 import java.time.Instant;
 import org.dcache.pool.nearline.spi.NearlineRequest;

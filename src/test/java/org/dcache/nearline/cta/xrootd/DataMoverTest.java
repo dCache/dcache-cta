@@ -10,7 +10,7 @@ import java.net.URI;
 import java.net.UnknownHostException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import org.dcache.pool.nearline.spi.NearlineRequest;
+import org.dcache.nearline.cta.PendingRequest;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
