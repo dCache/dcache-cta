@@ -209,7 +209,9 @@ public class DataServerHandler extends XrootdRequestHandler {
             var r = pr.getRequest();
             var file = getFile(r);
 
-            LOGGER.info("Request {} scheduling time: {}", file, TimeUtils.describe(Duration.between(Instant.now(), pr.getSubmitionTime()).abs()).orElse("-"));
+            LOGGER.info("Request {} scheduling time: {}", file,
+                  TimeUtils.describe(Duration.between(Instant.now(), pr.getSubmitionTime()).abs())
+                        .orElse("-"));
 
             RandomAccessFile raf;
             if (msg.isReadWrite() || msg.isNew() || msg.isDelete()) {
@@ -329,12 +331,14 @@ public class DataServerHandler extends XrootdRequestHandler {
             var r = migrationRequest.request();
             var file = getFile(r);
             long size = file.length();
-            long duration = Duration.between(migrationRequest.getCreationTime(), Instant.now()).toMillis();
-            double bandwidth = (double)size/duration;
+            long duration = Duration.between(migrationRequest.getCreationTime(), Instant.now())
+                  .toMillis();
+            double bandwidth = (double) size / duration;
 
-            LOGGER.info("Closing file {}. Transferred {} in {}, {}", file, Strings.humanReadableSize(size),
+            LOGGER.info("Closing file {}. Transferred {} in {}, {}", file,
+                  Strings.humanReadableSize(size),
                   TimeUtils.describeDuration(duration, TimeUnit.MILLISECONDS),
-                  Strings.describeBandwidth(bandwidth*1000)
+                  Strings.describeBandwidth(bandwidth * 1000)
             );
 
             if (r instanceof StageRequest) {
