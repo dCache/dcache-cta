@@ -210,7 +210,7 @@ public class DataServerHandler extends XrootdRequestHandler {
             var file = getFile(r);
 
             LOGGER.info("Request {} scheduling time: {}", file,
-                  TimeUtils.describe(Duration.between(Instant.now(), pr.getSubmitionTime()).abs())
+                  TimeUtils.describe(Duration.between(Instant.now(), pr.getSubmissionTime()).abs())
                         .orElse("-"));
 
             RandomAccessFile raf;

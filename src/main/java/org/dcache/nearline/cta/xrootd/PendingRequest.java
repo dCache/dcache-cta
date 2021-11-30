@@ -11,20 +11,20 @@ public class PendingRequest {
     /**
      *  Point on the time-line when request was submitted into pending queue.
      */
-    private final Instant submitionTime;
+    private final Instant submissionTime;
 
     /**
      * The nearline request.
      */
     private final NearlineRequest request;
 
-    public PendingRequest(Instant submitionTime, NearlineRequest request) {
-        this.submitionTime = submitionTime;
+    public PendingRequest(Instant submissionTime, NearlineRequest request) {
+        this.submissionTime = submissionTime;
         this.request = request;
     }
 
-    public Instant getSubmitionTime() {
-        return submitionTime;
+    public Instant getSubmissionTime() {
+        return submissionTime;
     }
 
     public NearlineRequest getRequest() {
