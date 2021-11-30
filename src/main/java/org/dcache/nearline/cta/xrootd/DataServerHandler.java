@@ -41,12 +41,15 @@ import java.nio.ByteBuffer;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import org.dcache.pool.nearline.spi.FlushRequest;
@@ -54,6 +57,8 @@ import org.dcache.pool.nearline.spi.NearlineRequest;
 import org.dcache.pool.nearline.spi.StageRequest;
 import org.dcache.util.Checksum;
 import org.dcache.util.ChecksumType;
+import org.dcache.util.Strings;
+import org.dcache.util.TimeUtils;
 import org.dcache.xrootd.core.XrootdException;
 import org.dcache.xrootd.core.XrootdRequestHandler;
 import org.dcache.xrootd.protocol.messages.CloseRequest;
@@ -85,8 +90,20 @@ public class DataServerHandler extends XrootdRequestHandler {
      */
     private static class MigrationRequest {
 
+        /**
+         * The nearline request associated with this migration.
+         */
         private final NearlineRequest request;
+
+        /**
+         * File to migrate.
+         */
         private final RandomAccessFile raf;
+
+        /**
+         * Migration request creation time.
+         */
+        private final Instant btime = Instant.now();
 
         public MigrationRequest(NearlineRequest request, RandomAccessFile raf) {
             this.request = request;
@@ -99,6 +116,10 @@ public class DataServerHandler extends XrootdRequestHandler {
 
         public NearlineRequest request() {
             return request;
+        }
+
+        public Instant getCreationTime() {
+            return btime;
         }
     }
 
@@ -299,9 +320,20 @@ public class DataServerHandler extends XrootdRequestHandler {
     protected OkResponse<CloseRequest> doOnClose(ChannelHandlerContext ctx, CloseRequest msg)
           throws XrootdException {
         try {
-            var r = closeOpenFile(msg.getFileHandle());
+            var migrationRequest = getAndRemoveOpenFile(msg.getFileHandle());
+            migrationRequest.raf().close();
+
+            var r = migrationRequest.request();
             var file = getFile(r);
-            LOGGER.info("Closing file {}.", file);
+            long size = file.length();
+            long duration = Duration.between(migrationRequest.getCreationTime(), Instant.now()).toMillis();
+            double bandwidth = (double)size/duration;
+
+            LOGGER.info("Closing file {}. Transferred {} in {}, {}", file, Strings.humanReadableSize(size),
+                  TimeUtils.describeDuration(duration, TimeUnit.MILLISECONDS),
+                  Strings.describeBandwidth(bandwidth*1000)
+            );
+
             if (r instanceof StageRequest) {
                 ForkJoinPool.commonPool().execute(() -> {
                     try {
@@ -429,15 +461,6 @@ public class DataServerHandler extends XrootdRequestHandler {
         }
         throw new XrootdException(kXR_FileNotOpen, "Invalid file descriptor");
     }
-
-    private NearlineRequest closeOpenFile(int fd)
-          throws XrootdException, IOException {
-
-        var migrationRequest = getAndRemoveOpenFile(fd);
-        migrationRequest.raf().close();
-        return migrationRequest.request();
-    }
-
 
     private NearlineRequest getIORequest(String path)
           throws XrootdException {
