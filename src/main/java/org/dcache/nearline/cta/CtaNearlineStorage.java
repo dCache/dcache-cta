@@ -16,11 +16,13 @@ import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.UnknownHostException;
 import java.time.Instant;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
@@ -307,6 +309,16 @@ public class CtaNearlineStorage implements NearlineStorage {
      */
     @Override
     public void cancel(UUID uuid) {
+        // FIXME: we need to cancel the requests in CTA.
+        var requestIterator =  pendingRequests.entrySet().iterator();
+        while (requestIterator.hasNext()) {
+            var r = requestIterator.next().getValue().getRequest();
+            if (r.getId().equals(uuid)) {
+                r.failed(new CancellationException("Canceled by dCache"));
+                // no other matches expected.
+                break;
+            }
+        }
     }
 
     /**

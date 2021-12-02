@@ -416,6 +416,24 @@ public class CtaNearlineStorageTest {
         assertEquals("pending request count not zero", 0, driver.getPendingRequestsCount());
     }
 
+    @Test
+    public void testCencelOfPendingRequest() {
+
+        var request = mockedStageRequest();
+        driver = new CtaNearlineStorage("foo", "bar");
+        driver.configure(drvConfig);
+        driver.start();
+
+        driver.stage(Set.of(request));
+
+        cta.waitToReply();
+
+        driver.cancel(request.getId());
+        assertEquals("unexpected pending request queue size", 0, driver.getPendingRequestsCount());
+
+    }
+
+
     void waitToComplete() {
         try {
             waitForComplete.get(1, TimeUnit.SECONDS);
