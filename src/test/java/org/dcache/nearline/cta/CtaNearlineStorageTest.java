@@ -433,6 +433,22 @@ public class CtaNearlineStorageTest {
 
     }
 
+    @Test
+    public void testCencelByRandomUUID() {
+
+        var request = mockedStageRequest();
+        driver = new CtaNearlineStorage("foo", "bar");
+        driver.configure(drvConfig);
+        driver.start();
+
+        driver.stage(Set.of(request));
+
+        cta.waitToReply();
+
+        driver.cancel(UUID.randomUUID());
+        assertEquals("unexpected pending request queue size", 1, driver.getPendingRequestsCount());
+
+    }
 
     void waitToComplete() {
         try {
