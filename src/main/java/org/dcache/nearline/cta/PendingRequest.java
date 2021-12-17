@@ -1,6 +1,8 @@
 package org.dcache.nearline.cta;
 
 import java.time.Instant;
+import java.util.UUID;
+import java.util.concurrent.CancellationException;
 import org.dcache.pool.nearline.spi.NearlineRequest;
 
 /**
@@ -9,7 +11,7 @@ import org.dcache.pool.nearline.spi.NearlineRequest;
 public class PendingRequest {
 
     /**
-     *  Point on the time-line when request was submitted into pending queue.
+     * Point on the time-line when request was submitted into pending queue.
      */
     private final Instant submissionTime;
 
@@ -23,11 +25,35 @@ public class PendingRequest {
         this.request = request;
     }
 
+    /**
+     * Returns request submission timestamp.
+     *
+     * @return request submission timestamp.
+     */
     public Instant getSubmissionTime() {
         return submissionTime;
     }
 
+    /**
+     * Returns underlying {@link NearlineRequest} requests.
+     *
+     * @return requests the nearline request.
+     */
     public NearlineRequest getRequest() {
         return request;
+    }
+
+    /**
+     * Returns requests {@link UUID} assigned by dCache's flush queue.
+     *
+     * @return requests uuid.
+     */
+    public UUID getRequestId() {
+        return request.getId();
+    }
+
+    public void cancel() {
+        // FIXME: we need to cancel the requests in CTA.
+        request.failed(new CancellationException("Canceled by dCache"));
     }
 }
