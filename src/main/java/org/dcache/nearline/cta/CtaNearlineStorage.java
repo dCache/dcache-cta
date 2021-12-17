@@ -169,6 +169,7 @@ public class CtaNearlineStorage implements NearlineStorage {
                           response.getFid(),
                           response.getReqId()
                     );
+                    pendingRequests.put(id, new PendingRequest(Instant.now(), r));
                 }
 
                 @Override
@@ -181,7 +182,6 @@ public class CtaNearlineStorage implements NearlineStorage {
 
                 @Override
                 public void onCompleted() {
-                    pendingRequests.put(id, new PendingRequest(Instant.now(), r));
                 }
             });
         }
@@ -242,6 +242,7 @@ public class CtaNearlineStorage implements NearlineStorage {
                           r.getFileAttributes().getPnfsId(),
                           response.getReqId()
                     );
+                    pendingRequests.put(id, new PendingRequest(Instant.now(), r));
                 }
 
                 @Override
@@ -254,7 +255,6 @@ public class CtaNearlineStorage implements NearlineStorage {
 
                 @Override
                 public void onCompleted() {
-                    pendingRequests.put(id, new PendingRequest(Instant.now(), r));
                 }
             });
         }
