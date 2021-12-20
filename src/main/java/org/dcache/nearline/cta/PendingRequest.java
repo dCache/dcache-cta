@@ -20,8 +20,8 @@ public class PendingRequest {
      */
     private final NearlineRequest request;
 
-    public PendingRequest(Instant submissionTime, NearlineRequest request) {
-        this.submissionTime = submissionTime;
+    public PendingRequest(NearlineRequest request) {
+        this.submissionTime = Instant.now();
         this.request = request;
     }
 

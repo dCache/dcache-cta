@@ -15,7 +15,6 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.UnknownHostException;
-import java.time.Instant;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -196,7 +195,7 @@ public class CtaNearlineStorage implements NearlineStorage {
                     );
 
                     var cancelRequest = ctaRequestFactory.cancelValueOf(ar, response);
-                    pendingRequests.put(id, new PendingRequest(Instant.now(), r) {
+                    pendingRequests.put(id, new PendingRequest(r) {
                               @Override
                               public void cancel() {
                                   // on cancel send the request to CTA; on success cancel the requests
@@ -278,7 +277,7 @@ public class CtaNearlineStorage implements NearlineStorage {
                           response.getReqId()
                     );
                     var cancelRequest = ctaRequestFactory.cancelValueOf(rr, response);
-                    pendingRequests.put(id, new PendingRequest(Instant.now(), r) {
+                    pendingRequests.put(id, new PendingRequest(r) {
                               @Override
                               public void cancel() {
                                   // on cancel send the request to CTA; on success cancel the requests
