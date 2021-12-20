@@ -53,7 +53,6 @@ public class PendingRequest {
     }
 
     public void cancel() {
-        // FIXME: we need to cancel the requests in CTA.
         request.failed(new CancellationException("Canceled by dCache"));
     }
 }

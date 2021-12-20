@@ -103,6 +103,33 @@ public class CtaNearlineStorage implements NearlineStorage {
      */
     private final ConcurrentMap<String, PendingRequest> pendingRequests = new ConcurrentHashMap<>();
 
+
+    /**
+     * {@link StreamObserver} that the given runnable when complete.
+     */
+    private static class OnSuccessStreamObserver implements StreamObserver<Empty> {
+
+        private final Runnable r;
+
+        public OnSuccessStreamObserver(Runnable r) {
+            this.r = r;
+        }
+
+        @Override
+        public void onNext(Empty o) {
+        }
+
+        @Override
+        public void onError(Throwable t) {
+            LOGGER.error("Failed to submit request {}", t.getMessage());
+        }
+
+        @Override
+        public void onCompleted() {
+            r.run();
+        }
+    }
+
     public CtaNearlineStorage(String type, String name) {
 
         Objects.requireNonNull(type, "HSM type is not provided");
@@ -167,7 +194,17 @@ public class CtaNearlineStorage implements NearlineStorage {
                           response.getFid(),
                           response.getReqId()
                     );
-                    pendingRequests.put(id, new PendingRequest(Instant.now(), r));
+
+                    var cancelRequest = ctaRequestFactory.cancelValueOf(ar, response);
+                    pendingRequests.put(id, new PendingRequest(Instant.now(), r) {
+                              @Override
+                              public void cancel() {
+                                  // on cancel send the request to CTA; on success cancel the requests
+                                  Runnable r = super::cancel;
+                                  cta.delete(cancelRequest, new OnSuccessStreamObserver(r));
+                              }
+                          }
+                    );
                 }
 
                 @Override
@@ -240,7 +277,16 @@ public class CtaNearlineStorage implements NearlineStorage {
                           r.getFileAttributes().getPnfsId(),
                           response.getReqId()
                     );
-                    pendingRequests.put(id, new PendingRequest(Instant.now(), r));
+                    var cancelRequest = ctaRequestFactory.cancelValueOf(rr, response);
+                    pendingRequests.put(id, new PendingRequest(Instant.now(), r) {
+                              @Override
+                              public void cancel() {
+                                  // on cancel send the request to CTA; on success cancel the requests
+                                  Runnable r = super::cancel;
+                                  cta.cancelRetrieve(cancelRequest, new OnSuccessStreamObserver(r));
+                              }
+                          }
+                    );
                 }
 
                 @Override

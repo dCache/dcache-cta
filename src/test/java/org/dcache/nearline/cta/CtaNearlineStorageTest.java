@@ -11,6 +11,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -22,6 +23,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -425,10 +427,10 @@ public class CtaNearlineStorageTest {
         driver.start();
 
         driver.stage(Set.of(request));
-
         cta.waitToReply();
 
         driver.cancel(request.getId());
+        cta.waitToReply();
         assertEquals("unexpected pending request queue size", 0, driver.getPendingRequestsCount());
 
     }
@@ -448,6 +450,81 @@ public class CtaNearlineStorageTest {
         driver.cancel(UUID.randomUUID());
         assertEquals("unexpected pending request queue size", 1, driver.getPendingRequestsCount());
 
+    }
+
+    @Test
+    public void testCancelOfPendingStageRequest() {
+
+        var request = mockedStageRequest();
+        driver = new CtaNearlineStorage("foo", "bar");
+        driver.configure(drvConfig);
+        driver.start();
+
+        driver.stage(Set.of(request));
+        cta.waitToReply();
+
+        driver.cancel(request.getId());
+        cta.waitToReply();
+
+        verify(request).failed(any(CancellationException.class));
+
+    }
+
+    @Test
+    public void testCancelOfPendingStageRequestOnError() {
+
+        var request = mockedStageRequest();
+        driver = new CtaNearlineStorage("foo", "bar");
+        driver.configure(drvConfig);
+        driver.start();
+
+        driver.stage(Set.of(request));
+
+        cta.waitToReply();
+
+        cta.fail();
+        driver.cancel(request.getId());
+        verify(request, times(0)).failed(any(CancellationException.class));
+        verify(request, times(0)).failed(anyInt(), any());
+        verify(request, times(0)).completed(any());
+
+    }
+
+    @Test
+    public void testCancelOfPendingFlushRequest() {
+
+        var request = mockedFlushRequest();
+        driver = new CtaNearlineStorage("foo", "bar");
+        driver.configure(drvConfig);
+        driver.start();
+
+        driver.flush(Set.of(request));
+        cta.waitToReply();
+
+        driver.cancel(request.getId());
+        cta.waitToReply();
+
+        verify(request).failed(any(CancellationException.class));
+
+    }
+
+    @Test
+    public void testCancelOfPendingFlushRequestOnError() {
+
+        var request = mockedFlushRequest();
+        driver = new CtaNearlineStorage("foo", "bar");
+        driver.configure(drvConfig);
+        driver.start();
+
+        driver.flush(Set.of(request));
+
+        cta.waitToReply();
+        cta.fail();
+
+        driver.cancel(request.getId());
+        verify(request, times(0)).failed(any(CancellationException.class));
+        verify(request, times(0)).failed(anyInt(), any());
+        verify(request, times(0)).completed(any());
     }
 
     void waitToComplete() {

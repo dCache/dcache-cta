@@ -12,6 +12,7 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import org.dcache.cta.rpc.ArchiveRequest;
 import org.dcache.cta.rpc.ArchiveResponse;
+import org.dcache.cta.rpc.CancelRetrieveRequest;
 import org.dcache.cta.rpc.CtaRpcGrpc;
 import org.dcache.cta.rpc.DeleteRequest;
 import org.dcache.cta.rpc.RetrieveRequest;
@@ -87,6 +88,19 @@ public class DummyCta {
                       .setReqId("RetrieveRequest-" + ThreadLocalRandom.current().nextInt())
                       .build();
 
+                responseObserver.onNext(response);
+                responseObserver.onCompleted();
+            } else {
+                responseObserver.onError(new StatusException(Status.INTERNAL));
+            }
+        }
+
+        @Override
+        public void cancelRetrieve(CancelRetrieveRequest request,
+              StreamObserver<Empty> responseObserver) {
+            if (!fail) {
+                var response = Empty.newBuilder()
+                      .build();
                 responseObserver.onNext(response);
                 responseObserver.onCompleted();
             } else {

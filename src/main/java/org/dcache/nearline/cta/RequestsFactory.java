@@ -7,9 +7,12 @@ import cta.eos.CtaEos;
 import cta.eos.CtaEos.Transport;
 import java.io.File;
 import java.util.Objects;
+import org.dcache.cta.rpc.ArchiveResponse;
+import org.dcache.cta.rpc.CancelRetrieveRequest;
 import org.dcache.cta.rpc.DeleteRequest;
 import org.dcache.cta.rpc.FileInfo;
 import org.dcache.cta.rpc.RetrieveRequest;
+import org.dcache.cta.rpc.RetrieveResponse;
 import org.dcache.namespace.FileAttribute;
 import org.dcache.pool.nearline.spi.FlushRequest;
 import org.dcache.cta.rpc.ArchiveRequest;
@@ -156,6 +159,27 @@ public class RequestsFactory {
               .setTransport(transport)
               .setFile(ctaFileInfo)
               .setArchiveId(archiveId)
+              .build();
+    }
+
+    public CancelRetrieveRequest cancelValueOf(RetrieveRequest request, RetrieveResponse response) {
+
+        return CancelRetrieveRequest.newBuilder()
+              .setInstance(instance)
+              .setCli(client)
+              .setFid(request.getArchiveId())
+              .setReqId(response.getReqId())
+              .build();
+    }
+
+    public DeleteRequest cancelValueOf(ArchiveRequest request, ArchiveResponse response) {
+
+        return DeleteRequest.newBuilder()
+              .setInstance(instance)
+              .setCli(client)
+              .setFile(request.getFile())
+              .setArchiveId(response.getFid())
+              .setReqId(response.getReqId())
               .build();
     }
 
