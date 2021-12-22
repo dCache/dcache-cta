@@ -52,11 +52,11 @@ publish_rpm:
     - mkdir -p rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
     - cp target/dcache-cta*.tar.gz rpmbuild/SOURCES
     - rpmbuild -ba --define "_topdir `pwd`/rpmbuild" target/SPECS/dcache-cta.spec
-    - PACKAGE=$(ls -1 target/dcache-cta*.tar.gz)
+    - PACKAGE=$(ls -1 ls -1 rpmbuild/RPMS/noarch/dcache-cta-*)
     - PACKAGENAME=$(basename ${PACKAGE})
     - VERSION_1=${PACKAGENAME##*-}
-    - VERSION=${VERSION_1%.tar.gz}
- #   - 'curl --header "JOB-TOKEN: $CI_JOB_TOKEN" --upload-file ${PACKAGE} ${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/${CI_PROJECT_NAME}/v${VERSION}/${PACKAGENAME}'
+    - VERSION=${VERSION_1%.noarch.rpm}
+    - 'curl --header "JOB-TOKEN: $CI_JOB_TOKEN" --upload-file ${PACKAGE} ${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/${CI_PROJECT_NAME}/v${VERSION}/${PACKAGENAME}'
 
 test:
   stage: build
