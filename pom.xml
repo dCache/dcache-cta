@@ -228,7 +228,6 @@
                             <appendAssemblyId>false</appendAssemblyId>
                             <finalName>${artifactId}-${tar.version}</finalName>
                             <formats>
-                                <format>dir</format>
                                 <format>tar.gz</format>
                             </formats>
                         </configuration>
