@@ -148,15 +148,16 @@
                 <version>3.2.0</version>
                 <executions>
                     <execution>
-                        <id>regex-property</id>
+                        <id>prepare-dist-version</id>
                         <goals>
                             <goal>regex-property</goal>
                         </goals>
                         <configuration>
-                            <name>tar.version</name>
+                            <!-- referenced by tar and rpm -->
+                            <name>dist.version</name>
                             <value>${project.version}</value>
                             <regex>-SNAPSHOT</regex>
-                            <replacement>-\${git.commit.id.abbrev}</replacement>
+                            <replacement>.git\${git.commit.id.abbrev}</replacement>
                             <failIfNoMatch>false</failIfNoMatch>
                         </configuration>
                     </execution>
@@ -226,7 +227,7 @@
                                 <descriptor>src/main/assembly/plugin.xml</descriptor>
                             </descriptors>
                             <appendAssemblyId>false</appendAssemblyId>
-                            <finalName>${artifactId}-${tar.version}</finalName>
+                            <finalName>${artifactId}-${dist.version}</finalName>
                             <formats>
                                 <format>tar.gz</format>
                             </formats>
