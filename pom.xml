@@ -217,7 +217,7 @@
                 <version>3.3.0</version>
                 <executions>
                     <execution>
-                        <id>make-assembly</id>
+                        <id>build-tar</id>
                         <phase>package</phase>
                         <goals>
                             <goal>single</goal>
@@ -233,6 +233,24 @@
                             </formats>
                         </configuration>
                     </execution>
+                    <execution>
+                        <id>prepare-spec</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>single</goal>
+                        </goals>
+                        <configuration>
+                            <descriptors>
+                                <descriptor>src/main/assembly/rpm-spec.xml</descriptor>
+                            </descriptors>
+                            <appendAssemblyId>false</appendAssemblyId>
+                            <finalName>SPECS</finalName>
+                            <formats>
+                                <format>dir</format>
+                            </formats>
+                        </configuration>
+                    </execution>
+
                 </executions>
             </plugin>
             <plugin>

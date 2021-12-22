@@ -1,0 +1,12 @@
+<assembly>
+    <id>rpm-spec</id>
+    <includeBaseDirectory>false</includeBaseDirectory>
+
+    <fileSets>
+        <fileSet>
+            <directory>src/main/rpm</directory>
+            <outputDirectory/>
+            <filtered>true</filtered>
+        </fileSet>
+    </fileSets>
+</assembly>
