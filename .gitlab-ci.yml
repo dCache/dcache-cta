@@ -27,6 +27,7 @@ package:
     name: "$CI_JOB_NAME-$CI_COMMIT_REF_NAME"
     paths:
       - "target/dcache-cta*.tar.gz"
+      - "target/SPECS"
 
 publish:
   only:
@@ -40,6 +41,22 @@ publish:
     - VERSION_1=${PACKAGENAME##*-}
     - VERSION=${VERSION_1%.tar.gz}
     - 'curl --header "JOB-TOKEN: $CI_JOB_TOKEN" --upload-file ${PACKAGE} ${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/${CI_PROJECT_NAME}/v${VERSION}/${PACKAGENAME}'
+
+publish_rpm:
+#  only:
+#    - tags
+  stage: publish
+  image: centos:8
+  script:
+    - yum install -y curl rpm-build
+    - mkdir -p rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
+    - cp target/dcache-cta*.tar.gz rpmbuild/SOURCES
+    - rpmbuild -ba --define "_topdir `pwd`/rpmbuild" target/SPECS/dcache-cta.spec
+    - PACKAGE=$(ls -1 target/dcache-cta*.tar.gz)
+    - PACKAGENAME=$(basename ${PACKAGE})
+    - VERSION_1=${PACKAGENAME##*-}
+    - VERSION=${VERSION_1%.tar.gz}
+ #   - 'curl --header "JOB-TOKEN: $CI_JOB_TOKEN" --upload-file ${PACKAGE} ${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/${CI_PROJECT_NAME}/v${VERSION}/${PACKAGENAME}'
 
 test:
   stage: build
