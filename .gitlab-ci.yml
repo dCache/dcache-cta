@@ -33,6 +33,10 @@ package_rpm:
   stage: publish
   image: almalinux:8
   script:
+    - echo $DCACHE_ORG_PGP_KEY | base64 -d -i > key.gpg.enc
+    - gpg --quiet --batch --yes --decrypt --passphrase="$DCACHE_ORG_PGP_KEY_PASS" --output secret.gpg key.gpg.enc
+    - gpg --quiet --batch --yes --allow-secret-key-import --passphrase="$DCACHE_ORG_PGP_KEY_PASS" --import secret.gpg
+    - gpg -k
     - dnf install -y curl rpm-build
     - mkdir -p rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
     - cp target/dcache-cta*.tar.gz rpmbuild/SOURCES
