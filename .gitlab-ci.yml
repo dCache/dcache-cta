@@ -33,9 +33,9 @@ publish:
   only:
     - tags
   stage: publish
-  image: centos:8
+  image: almalinux:8
   script:
-    - yum install -y curl
+    - dnf install -y curl
     - PACKAGE=$(ls -1 target/dcache-cta*.tar.gz)
     - PACKAGENAME=$(basename ${PACKAGE})
     - VERSION_1=${PACKAGENAME##*-}
@@ -46,9 +46,9 @@ publish_rpm:
   only:
     - tags
   stage: publish
-  image: centos:8
+  image: almalinux:8
   script:
-    - yum install -y curl rpm-build
+    - dnf install -y curl rpm-build
     - mkdir -p rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
     - cp target/dcache-cta*.tar.gz rpmbuild/SOURCES
     - rpmbuild -ba --define "_topdir `pwd`/rpmbuild" target/SPECS/dcache-cta.spec
