@@ -29,6 +29,18 @@ package:
       - "target/dcache-cta*.tar.gz"
       - "target/SPECS"
 
+package_rpm:
+  stage: publish
+  image: almalinux:8
+  script:
+    - dnf install -y curl rpm-build
+    - mkdir -p rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
+    - cp target/dcache-cta*.tar.gz rpmbuild/SOURCES
+    - rpmbuild -ba --define "_topdir `pwd`/rpmbuild" target/SPECS/dcache-cta.spec
+  artifacts:
+    paths:
+    - rpmbuild/RPMS/noarch/dcache-cta-*
+
 publish:
   only:
     - tags
