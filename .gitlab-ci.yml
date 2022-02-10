@@ -48,7 +48,7 @@ package_rpm:
     - cp target/dcache-cta*.tar.gz rpmbuild/SOURCES
     - rpmbuild -ba --define "_topdir `pwd`/rpmbuild" target/SPECS/dcache-cta.spec
     - rpmsign --addsign --define "_signature gpg" --define "_gpg_name  $DCACHE_ORG_KEY_NAME" --define "_gpg_sign_cmd_extra_args --pinentry-mode loopback --passphrase $DCACHE_ORG_PGP_KEY_PASS" rpmbuild/RPMS/noarch/dcache-cta-*
-    - rpmkeys –-import RPM-GPG-KEY
+    - rpmkeys --import RPM-GPG-KEY
     - rpm --checksig -v rpmbuild/RPMS/noarch/dcache-cta-*
   artifacts:
     paths:
