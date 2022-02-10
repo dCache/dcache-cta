@@ -527,6 +527,36 @@ public class CtaNearlineStorageTest {
         verify(request, times(0)).completed(any());
     }
 
+    @Test
+    public void testDontSubmitFailedFlushToCta() {
+
+        var request = mockedFlushRequest();
+        when(request.activate()).thenReturn(
+              Futures.immediateFailedFuture(new IOException("Failed to active request")));
+
+        driver = new CtaNearlineStorage("foo", "bar");
+        driver.configure(drvConfig);
+        driver.start();
+
+        driver.flush(Set.of(request));
+        assertEquals("pending request count not zero", 0, driver.getPendingRequestsCount());
+    }
+
+    @Test
+    public void testDontSubmitFailedStageToCta() {
+
+        var request = mockedStageRequest();
+        when(request.activate()).thenReturn(
+              Futures.immediateFailedFuture(new IOException("Failed to active request")));
+
+        driver = new CtaNearlineStorage("foo", "bar");
+        driver.configure(drvConfig);
+        driver.start();
+
+        driver.stage(Set.of(request));
+        assertEquals("pending request count not zero", 0, driver.getPendingRequestsCount());
+    }
+
     void waitToComplete() {
         try {
             waitForComplete.get(1, TimeUnit.SECONDS);

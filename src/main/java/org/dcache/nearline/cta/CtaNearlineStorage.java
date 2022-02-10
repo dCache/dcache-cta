@@ -180,6 +180,7 @@ public class CtaNearlineStorage implements NearlineStorage {
                 Throwable t = Throwables.getRootCause(e);
                 LOGGER.error("Failed to activate flush request: {}", t.getMessage());
                 r.failed(e);
+                continue;
             }
 
             var ar = ctaRequestFactory.valueOf(r);
@@ -264,6 +265,7 @@ public class CtaNearlineStorage implements NearlineStorage {
                 LOGGER.error("Failed to activate/allocate space for retrieve request: {}",
                       t.getMessage());
                 r.failed(e);
+                continue;
             }
 
             var rr = ctaRequestFactory.valueOf(r);
