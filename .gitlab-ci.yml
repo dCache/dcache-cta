@@ -18,7 +18,7 @@ cache:
   paths:
     - ./.m2/repository
 
-package:
+package_tar:
   stage: package
   image: maven:3.6.3-openjdk-11
   script:
@@ -30,7 +30,9 @@ package:
       - "target/SPECS"
 
 package_rpm:
-  stage: publish
+  stage: package
+  dependencies:
+    - package_tar
   image: almalinux:8
   script:
     - echo $DCACHE_ORG_PGP_KEY | base64 -d -i > secret.gpg
@@ -45,7 +47,7 @@ package_rpm:
     paths:
     - rpmbuild/RPMS/noarch/dcache-cta-*
 
-publish:
+publish_tar:
   only:
     - tags
   stage: publish
@@ -62,12 +64,11 @@ publish_rpm:
   only:
     - tags
   stage: publish
+  dependencies:
+    - package_rpm
   image: almalinux:8
   script:
-    - dnf install -y curl rpm-build
-    - mkdir -p rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
-    - cp target/dcache-cta*.tar.gz rpmbuild/SOURCES
-    - rpmbuild -ba --define "_topdir `pwd`/rpmbuild" target/SPECS/dcache-cta.spec
+    - dnf install -y curl
     - PACKAGE=$(ls -1 rpmbuild/RPMS/noarch/dcache-cta-*)
     - 'curl -sS -u ${YUM_REPO_USER}:${YUM_REPO_PASS} --upload-file ${PACKAGE} ${YUM_REPO_URL}/`basename ${PACKAGE}`'
 
