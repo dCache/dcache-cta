@@ -18,12 +18,16 @@ cache:
   paths:
     - ./.m2/repository
 
-package_tar:
-  stage: package
+build:
+  stage: build
   image: maven:3.6.3-openjdk-11
   script:
-    - mvn $MAVEN_CLI_OPTS clean -DskipTests package
+    - mvn $MAVEN_CLI_OPTS clean package
   artifacts:
+    reports:
+      junit:
+        - "target/surefire-reports/TEST-*.xml"
+        - "target/failsafe-reports/TEST-*.xml"
     name: "$CI_JOB_NAME-$CI_COMMIT_REF_NAME"
     paths:
       - "target/dcache-cta*.tar.gz"
@@ -32,7 +36,7 @@ package_tar:
 package_rpm:
   stage: package
   dependencies:
-    - package_tar
+    - build
   image: almalinux:8
   script:
     - echo $DCACHE_ORG_PGP_KEY | base64 -d -i > secret.gpg
@@ -75,17 +79,13 @@ publish_rpm:
     - PACKAGE=$(ls -1 rpmbuild/RPMS/noarch/dcache-cta-*)
     - 'curl -sS -u ${YUM_REPO_USER}:${YUM_REPO_PASS} --upload-file ${PACKAGE} ${YUM_REPO_URL}/`basename ${PACKAGE}`'
 
-test:
+coverage:
   stage: build
   image: maven:3.6.3-openjdk-11
   script:
     - mvn $MAVEN_CLI_OPTS clean org.jacoco:jacoco-maven-plugin:prepare-agent test jacoco:report
 
   artifacts:
-    reports:
-      junit:
-        - "target/surefire-reports/TEST-*.xml"
-        - "target/failsafe-reports/TEST-*.xml"
     paths:
       - "target/site/jacoco/jacoco.xml"
 
