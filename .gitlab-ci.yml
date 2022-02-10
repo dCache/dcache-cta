@@ -33,15 +33,14 @@ package_rpm:
   stage: publish
   image: almalinux:8
   script:
-    - echo $DCACHE_ORG_PGP_KEY | base64 -d -i > key.gpg.enc
-    - gpg --quiet --batch --yes --decrypt --passphrase="$DCACHE_ORG_PGP_KEY_PASS" --output secret.gpg key.gpg.enc
+    - echo $DCACHE_ORG_PGP_KEY | base64 -d -i > secret.gpg
     - gpg --quiet --batch --yes --allow-secret-key-import --passphrase="$DCACHE_ORG_PGP_KEY_PASS" --import secret.gpg
     - gpg -k
     - dnf install -y curl rpm-build rpm-sign
     - mkdir -p rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
     - cp target/dcache-cta*.tar.gz rpmbuild/SOURCES
     - rpmbuild -ba --define "_topdir `pwd`/rpmbuild" target/SPECS/dcache-cta.spec
-    - rpmsign --addsign --define "_sourcedir $(pwd)" --define "_signature gpg" --define "_gpg_name  $DCACHE_ORG_KEY_NAME" --define "_gpg_sign_cmd_extra_args --pinentry-mode loopback --passphrase $DCACHE_ORG_PGP_KEY_PASS" rpmbuild/RPMS/noarch/dcache-cta-*
+    - rpmsign --addsign --define "_signature gpg" --define "_gpg_name  $DCACHE_ORG_KEY_NAME" --define "_gpg_sign_cmd_extra_args --pinentry-mode loopback --passphrase $DCACHE_ORG_PGP_KEY_PASS" rpmbuild/RPMS/noarch/dcache-cta-*
   artifacts:
     paths:
     - rpmbuild/RPMS/noarch/dcache-cta-*
