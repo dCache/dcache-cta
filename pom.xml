@@ -17,7 +17,7 @@
     <properties>
         <version.dcache>7.2.2</version.dcache>
         <java.version>11</java.version>
-        <version.grpc>1.44.0</version.grpc>
+        <version.grpc>1.44.1</version.grpc>
     </properties>
 
     <licenses>
