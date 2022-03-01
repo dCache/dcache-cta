@@ -89,7 +89,7 @@ public class RequestsFactoryTest {
 
         var pnfsid = "0000C9B4E3768770452E8B1B8E0232584872";
         var archiveId = 12345L;
-        var uri = URI.create(String.format("cta://cta?archiveid=%d", archiveId));
+        var uri = URI.create(String.format("cta://cta/%s?archiveid=%d", pnfsid, archiveId));
 
         var storageInfo = GenericStorageInfo.valueOf("a:b@z", "*");
         storageInfo.addLocation(uri);
