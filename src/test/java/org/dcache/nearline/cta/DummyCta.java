@@ -5,8 +5,11 @@ import cta.admin.CtaAdmin.Version;
 import io.grpc.Server;
 import io.grpc.Status;
 import io.grpc.StatusException;
+import io.grpc.netty.shaded.io.grpc.netty.GrpcSslContexts;
 import io.grpc.netty.shaded.io.grpc.netty.NettyServerBuilder;
+import io.grpc.netty.shaded.io.netty.handler.ssl.ClientAuth;
 import io.grpc.stub.StreamObserver;
+import java.io.File;
 import java.io.IOException;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
@@ -23,8 +26,16 @@ public class DummyCta {
     private final Server server;
     private volatile boolean fail;
 
-    public DummyCta() {
-        server = NettyServerBuilder.forPort(0).addService(new CtaSvc()).build();
+    public DummyCta(File cert, File key) throws Exception {
+        server = NettyServerBuilder.forPort(0)
+              .sslContext(GrpcSslContexts.forServer(cert, key)
+                    .clientAuth(ClientAuth.NONE)
+                    .protocols("TLSv1.3", "TLSv1.2")
+                    .build()
+              )
+              .addService(new CtaSvc())
+              .directExecutor()
+              .build();
         fail = false;
     }
 

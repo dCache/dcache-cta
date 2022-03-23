@@ -7,10 +7,15 @@ import com.google.common.base.Throwables;
 import com.google.common.net.HostAndPort;
 import com.google.protobuf.Empty;
 import cta.admin.CtaAdmin.Version;
+import io.grpc.ChannelCredentials;
 import io.grpc.ConnectivityState;
+import io.grpc.Grpc;
+import io.grpc.InsecureChannelCredentials;
 import io.grpc.ManagedChannel;
-import io.grpc.ManagedChannelBuilder;
+import io.grpc.TlsChannelCredentials;
 import io.grpc.stub.StreamObserver;
+import java.io.File;
+import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
@@ -45,6 +50,8 @@ public class CtaNearlineStorage implements NearlineStorage {
     public static final String CTA_ENDPOINT = "cta-frontend-addr";
     public static final String CTA_USER = "cta-user";
     public static final String CTA_GROUP = "cta-group";
+    public static final String CTA_TLS = "cta-use-tls";
+    public static final String CTA_CA = "cta-ca-chain";
     public static final String IO_ENDPOINT = "io-endpoint";
     public static final String IO_PORT = "io-port";
 
@@ -102,6 +109,15 @@ public class CtaNearlineStorage implements NearlineStorage {
      */
     private final ConcurrentMap<String, PendingRequest> pendingRequests = new ConcurrentHashMap<>();
 
+    /**
+     * Path to CA-chain that when TLS is used
+     */
+    private File caRootChain;
+
+    /**
+     * Should TLS be used for gRPC requests
+     */
+    private boolean useTls;
 
     /**
      * {@link StreamObserver} that the given runnable when complete.
@@ -404,6 +420,14 @@ public class CtaNearlineStorage implements NearlineStorage {
         }
 
         ioSocketAddress = new InetSocketAddress(localEndpoint, Integer.parseInt(localPort));
+
+        useTls = Boolean.parseBoolean(properties.getOrDefault(CTA_TLS, "false"));
+        if (useTls) {
+            var caPath = properties.get(CTA_CA);
+            if (caPath != null) {
+                caRootChain = new File(caPath);
+            }
+        }
     }
 
     @Override
@@ -412,9 +436,22 @@ public class CtaNearlineStorage implements NearlineStorage {
         dataMover = new DataMover(type, name, ioSocketAddress, pendingRequests);
         dataMover.startAsync().awaitRunning();
 
-        channel = ManagedChannelBuilder
-              .forAddress(ctaEndpoint.getHost(), ctaEndpoint.getPort())
-              .usePlaintext()
+        ChannelCredentials credentials;
+        if (useTls) {
+            var tlsCredBuilder = TlsChannelCredentials.newBuilder();
+            if (caRootChain != null) {
+                try {
+                    tlsCredBuilder.trustManager(caRootChain);
+                } catch (IOException e) {
+                    throw new IllegalArgumentException("Can't load root-ca chain file", e);
+                }
+            }
+            credentials = tlsCredBuilder.build();
+        } else {
+            credentials = InsecureChannelCredentials.create();
+        }
+
+        channel = Grpc.newChannelBuilderForAddress(ctaEndpoint.getHost(), ctaEndpoint.getPort(), credentials)
               .build();
 
         cta = CtaRpcGrpc.newStub(channel);
