@@ -5,7 +5,7 @@ stages:
 #  - visualize
 
 variables:
-  MAVEN_CLI_OPTS: "--batch-mode --errors --fail-at-end --show-version -DinstallAtEnd=true -DdeployAtEnd=true  -Dmaven.repo.local=.m2/repository"
+  MAVEN_CLI_OPTS: "--batch-mode --errors --no-transfer-progress --fail-at-end --show-version -DinstallAtEnd=true -DdeployAtEnd=true  -Dmaven.repo.local=.m2/repository"
   REPO_NAME: dcache-cta
 
 # Cache downloaded dependencies and plugins between builds.
