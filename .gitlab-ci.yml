@@ -33,6 +33,17 @@ build:
       - "target/dcache-cta*.tar.gz"
       - "target/SPECS"
 
+build_java_next:
+  stage: build
+  image: maven:3.8.4-openjdk-17
+  script:
+    - mvn $MAVEN_CLI_OPTS clean package
+  artifacts:
+    reports:
+      junit:
+        - "target/surefire-reports/TEST-*.xml"
+        - "target/failsafe-reports/TEST-*.xml"
+
 package_rpm:
   stage: package
   dependencies:
