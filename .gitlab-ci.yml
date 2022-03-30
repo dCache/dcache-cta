@@ -2,7 +2,7 @@ stages:
   - build
   - package
   - publish
-#  - visualize
+  - coverage
 
 variables:
   MAVEN_CLI_OPTS: "--batch-mode --errors --no-transfer-progress --fail-at-end --show-version -DinstallAtEnd=true -DdeployAtEnd=true  -Dmaven.repo.local=.m2/repository"
@@ -100,16 +100,16 @@ coverage:
     paths:
       - "target/site/jacoco/jacoco.xml"
 
-#coverage-jdk11:
-#  # Must be in a stage later than test-jdk11's stage.
-#  # The `visualize` stage does not exist by default.
-#  # Please define it first, or choose an existing stage like `deploy`.
-#  stage: visualize
-#  image: registry.gitlab.com/haynes/jacoco2cobertura:1.0.7
-#  script:
-#    - 'python /opt/cover2cover.py target/site/jacoco/jacoco.xml src/main/java > target/site/cobertura.xml'
-#    - 'python /opt/source2filename.py target/site/cobertura.xml'
-#  needs: ["test"]
-#  artifacts:
-#    reports:
-#      cobertura: target/site/cobertura.xml
+coverage-report:
+  stage: coverage
+  image: registry.gitlab.com/haynes/jacoco2cobertura:1.0.7
+  script:
+    - 'python /opt/cover2cover.py target/site/jacoco/jacoco.xml $CI_PROJECT_DIR/src/main/java/ > target/site/cobertura.xml'
+  dependencies:
+    - coverage
+  needs: ["coverage"]
+  artifacts:
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: target/site/cobertura.xml
