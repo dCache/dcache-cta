@@ -5,6 +5,7 @@ import static org.dcache.xrootd.protocol.XrootdProtocol.DATA_SERVER;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.util.concurrent.AbstractIdleService;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import cta.eos.CtaEos.Transport;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
@@ -70,8 +71,8 @@ public class DataMover extends AbstractIdleService implements CtaTransportProvid
 
         try {
             this.pendingRequests = pendingRequests;
-            bossGroup = new NioEventLoopGroup();
-            workerGroup = new NioEventLoopGroup();
+            bossGroup = new NioEventLoopGroup(0, new ThreadFactoryBuilder().setNameFormat("cta-datamover-accept-%d").build());
+            workerGroup = new NioEventLoopGroup(0, new ThreadFactoryBuilder().setNameFormat("cta-datamover-worker-%d").build());
 
             server = new ServerBootstrap()
                   .group(bossGroup, workerGroup)
