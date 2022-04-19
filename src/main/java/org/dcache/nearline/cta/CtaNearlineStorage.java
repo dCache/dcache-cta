@@ -5,14 +5,17 @@ import static com.google.common.base.Preconditions.checkArgument;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Throwables;
 import com.google.common.net.HostAndPort;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.protobuf.Empty;
 import cta.admin.CtaAdmin.Version;
 import io.grpc.ChannelCredentials;
 import io.grpc.ConnectivityState;
-import io.grpc.Grpc;
 import io.grpc.InsecureChannelCredentials;
 import io.grpc.ManagedChannel;
 import io.grpc.TlsChannelCredentials;
+import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder;
+import io.grpc.netty.shaded.io.netty.channel.nio.NioEventLoopGroup;
+import io.grpc.netty.shaded.io.netty.channel.socket.nio.NioSocketChannel;
 import io.grpc.stub.StreamObserver;
 import java.io.File;
 import java.io.IOException;
@@ -451,8 +454,11 @@ public class CtaNearlineStorage implements NearlineStorage {
             credentials = InsecureChannelCredentials.create();
         }
 
-        channel = Grpc.newChannelBuilderForAddress(ctaEndpoint.getHost(), ctaEndpoint.getPort(), credentials)
-              .disableServiceConfigLookUp()
+        channel = NettyChannelBuilder.forAddress(ctaEndpoint.getHost(), ctaEndpoint.getPort(), credentials)
+              .disableServiceConfigLookUp() // no lookup in DNS for service record
+              .channelType(NioSocketChannel.class) // use Nio event loop instead of epoll
+              .eventLoopGroup(new NioEventLoopGroup(0, new ThreadFactoryBuilder().setNameFormat("cta-grpc-worker-%d").build()))
+              .directExecutor() // use netty threads
               .build();
 
         cta = CtaRpcGrpc.newStub(channel);

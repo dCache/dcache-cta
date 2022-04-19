@@ -1,5 +1,6 @@
 package org.dcache.nearline.cta;
 
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.protobuf.Empty;
 import cta.admin.CtaAdmin.Version;
 import io.grpc.Server;
@@ -7,10 +8,13 @@ import io.grpc.Status;
 import io.grpc.StatusException;
 import io.grpc.netty.shaded.io.grpc.netty.GrpcSslContexts;
 import io.grpc.netty.shaded.io.grpc.netty.NettyServerBuilder;
+import io.grpc.netty.shaded.io.netty.channel.nio.NioEventLoopGroup;
+import io.grpc.netty.shaded.io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.grpc.netty.shaded.io.netty.handler.ssl.ClientAuth;
 import io.grpc.stub.StreamObserver;
 import java.io.File;
 import java.io.IOException;
+import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import org.dcache.cta.rpc.ArchiveRequest;
@@ -33,6 +37,9 @@ public class DummyCta {
                     .protocols("TLSv1.3", "TLSv1.2")
                     .build()
               )
+              .bossEventLoopGroup( new NioEventLoopGroup(2, new ThreadFactoryBuilder().setNameFormat("dummy-cta-server-accept-%d").build()))
+              .workerEventLoopGroup(new NioEventLoopGroup(2, new ThreadFactoryBuilder().setNameFormat("dummy-cta-server-worker-%d").build()))
+              .channelType(NioServerSocketChannel.class)
               .addService(new CtaSvc())
               .directExecutor()
               .build();
