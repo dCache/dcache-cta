@@ -452,6 +452,7 @@ public class CtaNearlineStorage implements NearlineStorage {
         }
 
         channel = Grpc.newChannelBuilderForAddress(ctaEndpoint.getHost(), ctaEndpoint.getPort(), credentials)
+              .disableServiceConfigLookUp()
               .build();
 
         cta = CtaRpcGrpc.newStub(channel);
