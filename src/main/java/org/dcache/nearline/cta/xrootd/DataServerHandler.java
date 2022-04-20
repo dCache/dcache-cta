@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011-2021 dCache.org <support@dcache.org>
+ * Copyright (C) 2011-2022 dCache.org <support@dcache.org>
  * <p>
  * This file is part of xrootd4j.
  * <p>
@@ -35,16 +35,17 @@ import io.netty.channel.ChannelHandlerContext;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.RandomAccessFile;
 import java.net.URI;
 import java.nio.ByteBuffer;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.StandardOpenOption;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentMap;
@@ -99,20 +100,20 @@ public class DataServerHandler extends XrootdRequestHandler {
         /**
          * File to migrate.
          */
-        private final RandomAccessFile raf;
+        private final FileChannel fileChannel;
 
         /**
          * Migration request creation time.
          */
         private final Instant btime = Instant.now();
 
-        public MigrationRequest(NearlineRequest request, RandomAccessFile raf) {
+        public MigrationRequest(NearlineRequest request, FileChannel fileChannel) {
             this.request = request;
-            this.raf = raf;
+            this.fileChannel = fileChannel;
         }
 
-        public RandomAccessFile raf() {
-            return raf;
+        public FileChannel fileChannel() {
+            return fileChannel;
         }
 
         public NearlineRequest request() {
@@ -214,16 +215,17 @@ public class DataServerHandler extends XrootdRequestHandler {
                   TimeUtils.describe(Duration.between(Instant.now(), pr.getSubmissionTime()).abs())
                         .orElse("-"));
 
-            RandomAccessFile raf;
+            EnumSet<StandardOpenOption> openOptions = EnumSet.noneOf(StandardOpenOption.class);
             if (msg.isReadWrite() || msg.isNew() || msg.isDelete()) {
                 if (!(r instanceof StageRequest)) {
                     throw new XrootdException(kXR_ArgInvalid,
                           "An attempt to open-for-read for stage requests");
                 }
                 LOGGER.info("Opening {} for writing", file);
-                raf = new RandomAccessFile(file, "rw");
+                openOptions.add(StandardOpenOption.CREATE);
+                openOptions.add(StandardOpenOption.WRITE);
                 if (msg.isDelete()) {
-                    raf.setLength(0);
+                    openOptions.add(StandardOpenOption.TRUNCATE_EXISTING);
                 }
             } else {
                 if (!(r instanceof FlushRequest)) {
@@ -231,15 +233,16 @@ public class DataServerHandler extends XrootdRequestHandler {
                           "An attempt to open-for-write for flush requests");
                 }
                 LOGGER.info("Opening {} for reading.", file);
-                raf = new RandomAccessFile(file, "r");
+                openOptions.add(StandardOpenOption.READ);
             }
 
+            FileChannel fileChannel = FileChannel.open(file.toPath(), openOptions);
             FileStatus stat = null;
             if (msg.isRetStat()) {
                 stat = statusByFile(file);
             }
 
-            var migrationRequest = new MigrationRequest(r, raf);
+            var migrationRequest = new MigrationRequest(r, fileChannel);
             int fd = addOpenFile(migrationRequest);
 
             return new OpenResponse(msg,
@@ -265,13 +268,13 @@ public class DataServerHandler extends XrootdRequestHandler {
     @Override
     protected Object doOnRead(ChannelHandlerContext ctx, ReadRequest msg)
           throws XrootdException {
-        RandomAccessFile raf = getOpenFile(msg.getFileHandle()).raf();
+        FileChannel fileChannel = getOpenFile(msg.getFileHandle()).fileChannel();
         if (msg.bytesToRead() == 0) {
             return withOk(msg);
         }
 
         try {
-            return new ZeroCopyReadResponse(msg, raf.getChannel());
+            return new ZeroCopyReadResponse(msg, fileChannel);
         } catch (IOException e) {
             throw new XrootdException(kXR_IOError, e.getMessage());
         }
@@ -288,10 +291,9 @@ public class DataServerHandler extends XrootdRequestHandler {
     protected OkResponse<WriteRequest> doOnWrite(ChannelHandlerContext ctx, WriteRequest msg)
           throws XrootdException {
         try {
-            FileChannel channel =
-                  getOpenFile(msg.getFileHandle()).raf().getChannel();
-            channel.position(msg.getWriteOffset());
-            msg.getData(channel);
+            FileChannel fileChannel = getOpenFile(msg.getFileHandle()).fileChannel();
+            fileChannel.position(msg.getWriteOffset());
+            msg.getData(fileChannel);
             return withOk(msg);
         } catch (IOException e) {
             throw new XrootdException(kXR_IOError, e.getMessage());
@@ -308,7 +310,7 @@ public class DataServerHandler extends XrootdRequestHandler {
     protected OkResponse<SyncRequest> doOnSync(ChannelHandlerContext ctx, SyncRequest msg)
           throws XrootdException {
         try {
-            getOpenFile(msg.getFileHandle()).raf().getFD().sync();
+            getOpenFile(msg.getFileHandle()).fileChannel().force(false);
             return withOk(msg);
         } catch (IOException e) {
             throw new XrootdException(kXR_IOError, e.getMessage());
@@ -327,7 +329,7 @@ public class DataServerHandler extends XrootdRequestHandler {
           throws XrootdException {
         try {
             var migrationRequest = getAndRemoveOpenFile(msg.getFileHandle());
-            migrationRequest.raf().close();
+            migrationRequest.fileChannel().close();
 
             var r = migrationRequest.request();
             var file = getFile(r);
@@ -541,10 +543,10 @@ public class DataServerHandler extends XrootdRequestHandler {
 
     private FileStatus statusByHandle(int handle) throws XrootdException {
 
-        RandomAccessFile file = getOpenFile(handle).raf();
+        FileChannel file = getOpenFile(handle).fileChannel();
         try {
             return new FileStatus(0,
-                  file.length(),
+                  file.size(),
                   kXR_readable,
                   System.currentTimeMillis() / 1000);
         } catch (IOException e) {
