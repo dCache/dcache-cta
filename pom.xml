@@ -50,6 +50,14 @@
             <scope>provided</scope>
         </dependency>
 
+        <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+            <version>24.1.1-jre</version>
+            <!-- direct dependency in dCache -->
+            <scope>provided</scope>
+        </dependency>
+
         <!-- enforce Java11 compliant version -->
         <dependency>
             <groupId>javax.annotation</groupId>
