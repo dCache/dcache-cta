@@ -7,15 +7,15 @@ import cta.eos.CtaEos;
 import cta.eos.CtaEos.Transport;
 import java.io.File;
 import java.util.Objects;
-import org.dcache.cta.rpc.ArchiveResponse;
-import org.dcache.cta.rpc.CancelRetrieveRequest;
-import org.dcache.cta.rpc.DeleteRequest;
-import org.dcache.cta.rpc.FileInfo;
-import org.dcache.cta.rpc.RetrieveRequest;
-import org.dcache.cta.rpc.RetrieveResponse;
+import ch.cern.cta.rpc.ArchiveResponse;
+import ch.cern.cta.rpc.CancelRetrieveRequest;
+import ch.cern.cta.rpc.DeleteRequest;
+import ch.cern.cta.rpc.FileInfo;
+import ch.cern.cta.rpc.RetrieveRequest;
+import ch.cern.cta.rpc.RetrieveResponse;
 import org.dcache.namespace.FileAttribute;
 import org.dcache.pool.nearline.spi.FlushRequest;
-import org.dcache.cta.rpc.ArchiveRequest;
+import ch.cern.cta.rpc.ArchiveRequest;
 import org.dcache.pool.nearline.spi.RemoveRequest;
 import org.dcache.pool.nearline.spi.StageRequest;
 import org.dcache.util.ChecksumType;
@@ -105,6 +105,9 @@ public class RequestsFactory {
               .setFid(dcacheFileAttrs.getPnfsId().toString())
               .setStorageClass(dcacheFileAttrs.getStorageClass() + "@" + dcacheFileAttrs.getHsm())
               .setCsb(checksumBuilder.build())
+              .setGid(1)
+              .setUid(1)
+              .setPath("/" + id)
               .build();
 
         return ArchiveRequest.newBuilder()
@@ -125,6 +128,9 @@ public class RequestsFactory {
 
         var ctaFileInfo = FileInfo.newBuilder()
               .setFid(id)
+              .setGid(1)
+              .setUid(1)
+              .setPath("/" + id)
               .build();
 
         return DeleteRequest.newBuilder()
@@ -151,6 +157,9 @@ public class RequestsFactory {
               .setSize(dcacheFileAttrs.getSize())
               .setFid(dcacheFileAttrs.getPnfsId().toString())
               .setStorageClass(dcacheFileAttrs.getStorageClass() + "@" + dcacheFileAttrs.getHsm())
+              .setGid(1)
+              .setUid(1)
+              .setPath("/" + id)
               .build();
 
         return RetrieveRequest.newBuilder()
@@ -167,7 +176,7 @@ public class RequestsFactory {
         return CancelRetrieveRequest.newBuilder()
               .setInstance(instance)
               .setCli(client)
-              .setFid(request.getArchiveId())
+              .setArchiveId(request.getArchiveId())
               .setReqId(response.getReqId())
               .build();
     }

@@ -62,6 +62,13 @@ public class RequestsFactoryTest {
               achriveRequest.getFile().getCsb().getCs(0).getValue());
         assertEquals(fileAttrs.getSize(), achriveRequest.getFile().getSize());
         assertEquals(fileAttrs.getPnfsId().toString(), achriveRequest.getFile().getFid());
+
+        assertFalse(achriveRequest.getInstance().getName().isEmpty());
+        assertFalse(achriveRequest.getCli().getUser().getUsername().isEmpty());
+        assertFalse(achriveRequest.getCli().getUser().getGroupname().isEmpty());
+        assertFalse(achriveRequest.getFile().getUid() == 0);
+        assertFalse(achriveRequest.getFile().getGid() == 0);
+        assertFalse(achriveRequest.getFile().getPath().isEmpty());
     }
 
     @Test
@@ -80,6 +87,15 @@ public class RequestsFactoryTest {
 
         assertEquals(pnfsid, deleteRequest.getFile().getFid());
         assertEquals(archiveId, deleteRequest.getArchiveId());
+
+        assertFalse(deleteRequest.getInstance().getName().isEmpty());
+        assertFalse(deleteRequest.getCli().getUser().getUsername().isEmpty());
+        assertFalse(deleteRequest.getCli().getUser().getGroupname().isEmpty());
+        assertFalse(deleteRequest.getFile().getUid() == 0);
+        assertFalse(deleteRequest.getFile().getGid() == 0);
+        assertFalse(deleteRequest.getFile().getPath().isEmpty());
+        assertFalse(deleteRequest.getArchiveId() == 0L);
+
     }
 
     @Test
@@ -112,6 +128,14 @@ public class RequestsFactoryTest {
         assertEquals(fileAttrs.getSize(), retrieveRequest.getFile().getSize());
         assertEquals(fileAttrs.getPnfsId().toString(), retrieveRequest.getFile().getFid());
         assertEquals(archiveId, retrieveRequest.getArchiveId());
+
+        assertFalse(retrieveRequest.getInstance().getName().isEmpty());
+        assertFalse(retrieveRequest.getCli().getUser().getUsername().isEmpty());
+        assertFalse(retrieveRequest.getCli().getUser().getGroupname().isEmpty());
+        assertFalse(retrieveRequest.getFile().getUid() == 0);
+        assertFalse(retrieveRequest.getFile().getGid() == 0);
+        assertFalse(retrieveRequest.getFile().getPath().isEmpty());
+        assertFalse(retrieveRequest.getArchiveId() == 0L);
     }
 
 }

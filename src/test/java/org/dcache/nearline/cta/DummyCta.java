@@ -17,13 +17,13 @@ import java.io.IOException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
-import org.dcache.cta.rpc.ArchiveRequest;
-import org.dcache.cta.rpc.ArchiveResponse;
-import org.dcache.cta.rpc.CancelRetrieveRequest;
-import org.dcache.cta.rpc.CtaRpcGrpc;
-import org.dcache.cta.rpc.DeleteRequest;
-import org.dcache.cta.rpc.RetrieveRequest;
-import org.dcache.cta.rpc.RetrieveResponse;
+import ch.cern.cta.rpc.ArchiveRequest;
+import ch.cern.cta.rpc.ArchiveResponse;
+import ch.cern.cta.rpc.CancelRetrieveRequest;
+import ch.cern.cta.rpc.CtaRpcGrpc;
+import ch.cern.cta.rpc.DeleteRequest;
+import ch.cern.cta.rpc.RetrieveRequest;
+import ch.cern.cta.rpc.RetrieveResponse;
 
 public class DummyCta {
 
@@ -84,6 +84,36 @@ public class DummyCta {
         public void archive(ArchiveRequest request,
               StreamObserver<ArchiveResponse> responseObserver) {
 
+            if (request.getInstance().getName().isEmpty()) {
+                responseObserver.onError(new StatusException(Status.INVALID_ARGUMENT));
+                return;
+            }
+
+            if (request.getCli().getUser().getUsername().isEmpty()) {
+                responseObserver.onError(new StatusException(Status.INVALID_ARGUMENT));
+                return;
+            }
+
+            if (request.getCli().getUser().getGroupname().isEmpty()) {
+                responseObserver.onError(new StatusException(Status.INVALID_ARGUMENT));
+                return;
+            }
+
+            if (request.getFile().getUid() == 0) {
+                responseObserver.onError(new StatusException(Status.INVALID_ARGUMENT));
+                return;
+            }
+
+            if (request.getFile().getGid() == 0) {
+                responseObserver.onError(new StatusException(Status.INVALID_ARGUMENT));
+                return;
+            }
+
+            if (request.getFile().getPath().isEmpty()) {
+                responseObserver.onError(new StatusException(Status.INVALID_ARGUMENT));
+                return;
+            }
+
             if (!fail) {
                 var response = ArchiveResponse.newBuilder()
                       .setFid(ThreadLocalRandom.current().nextLong())
@@ -101,6 +131,41 @@ public class DummyCta {
         public void retrieve(RetrieveRequest request,
               StreamObserver<RetrieveResponse> responseObserver) {
 
+            if (request.getInstance().getName().isEmpty()) {
+                responseObserver.onError(new StatusException(Status.INVALID_ARGUMENT));
+                return;
+            }
+
+            if (request.getCli().getUser().getUsername().isEmpty()) {
+                responseObserver.onError(new StatusException(Status.INVALID_ARGUMENT));
+                return;
+            }
+
+            if (request.getCli().getUser().getGroupname().isEmpty()) {
+                responseObserver.onError(new StatusException(Status.INVALID_ARGUMENT));
+                return;
+            }
+
+            if (request.getFile().getUid() == 0) {
+                responseObserver.onError(new StatusException(Status.INVALID_ARGUMENT));
+                return;
+            }
+
+            if (request.getFile().getGid() == 0) {
+                responseObserver.onError(new StatusException(Status.INVALID_ARGUMENT));
+                return;
+            }
+
+            if (request.getFile().getPath().isEmpty()) {
+                responseObserver.onError(new StatusException(Status.INVALID_ARGUMENT));
+                return;
+            }
+
+            if (request.getArchiveId() == 0L) {
+                responseObserver.onError(new StatusException(Status.INVALID_ARGUMENT));
+                return;
+            }
+
             if (!fail) {
                 var response = RetrieveResponse.newBuilder()
                       .setReqId("RetrieveRequest-" + ThreadLocalRandom.current().nextInt())
@@ -116,6 +181,27 @@ public class DummyCta {
         @Override
         public void cancelRetrieve(CancelRetrieveRequest request,
               StreamObserver<Empty> responseObserver) {
+
+            if (request.getInstance().getName().isEmpty()) {
+                responseObserver.onError(new StatusException(Status.INVALID_ARGUMENT));
+                return;
+            }
+
+            if (request.getCli().getUser().getUsername().isEmpty()) {
+                responseObserver.onError(new StatusException(Status.INVALID_ARGUMENT));
+                return;
+            }
+
+            if (request.getCli().getUser().getGroupname().isEmpty()) {
+                responseObserver.onError(new StatusException(Status.INVALID_ARGUMENT));
+                return;
+            }
+
+            if (request.getArchiveId() == 0L) {
+                responseObserver.onError(new StatusException(Status.INVALID_ARGUMENT));
+                return;
+            }
+
             if (!fail) {
                 var response = Empty.newBuilder()
                       .build();
@@ -128,6 +214,42 @@ public class DummyCta {
 
         @Override
         public void delete(DeleteRequest request, StreamObserver<Empty> responseObserver) {
+
+            if (request.getInstance().getName().isEmpty()) {
+                responseObserver.onError(new StatusException(Status.INVALID_ARGUMENT));
+                return;
+            }
+
+            if (request.getCli().getUser().getUsername().isEmpty()) {
+                responseObserver.onError(new StatusException(Status.INVALID_ARGUMENT));
+                return;
+            }
+
+            if (request.getCli().getUser().getGroupname().isEmpty()) {
+                responseObserver.onError(new StatusException(Status.INVALID_ARGUMENT));
+                return;
+            }
+
+            if (request.getFile().getUid() == 0) {
+                responseObserver.onError(new StatusException(Status.INVALID_ARGUMENT));
+                return;
+            }
+
+            if (request.getFile().getGid() == 0) {
+                responseObserver.onError(new StatusException(Status.INVALID_ARGUMENT));
+                return;
+            }
+
+            if (request.getFile().getPath().isEmpty()) {
+                responseObserver.onError(new StatusException(Status.INVALID_ARGUMENT));
+                return;
+            }
+
+            if (request.getArchiveId() == 0L) {
+                responseObserver.onError(new StatusException(Status.INVALID_ARGUMENT));
+                return;
+            }
+
             if (!fail) {
                 var response = Empty.newBuilder()
                       .build();
