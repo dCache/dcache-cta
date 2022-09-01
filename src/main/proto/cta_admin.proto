@@ -30,6 +30,7 @@ message OptionBoolean {
     FORCE                              =  2;
     FULL                               =  3;
     READ_ONLY                          =  4;
+    FROM_CASTOR                        =  5;
 
     // hasOption options
     ALL                                =  6;
@@ -41,6 +42,7 @@ message OptionBoolean {
     SUMMARY                            = 14;
     LOOKUP_NAMESPACE                   = 15;
     NO_RECALL                          = 17;
+    DIRTY_BIT                          = 18;
   }
 
   Key key                              =  1;
@@ -56,6 +58,7 @@ message OptionUInt64 {
     COPY_NUMBER                        =  4;
     MIN_ARCHIVE_REQUEST_AGE            = 10;
     MIN_RETRIEVE_REQUEST_AGE           = 11;
+    MAX_FILE_SIZE                      = 12;
     PARTIAL_TAPES_NUMBER               = 15;
     REFRESH_INTERVAL                   = 16;
     TARGETED_FREE_SPACE                = 17;
@@ -98,6 +101,11 @@ message OptionString {
     FXID                               = 26;
     OBJECTID                           = 27;
     STATE                              = 28;
+    ACTIVITY_REGEX                     = 29;
+    DISK_INSTANCE                      = 30;
+    DISK_INSTANCE_SPACE                = 31;
+    VERIFICATION_STATUS                = 32;
+    DISABLED_REASON                    = 33;
   }
 
   Key key                              =  1;
@@ -141,13 +149,15 @@ message AdminCmd {
     CMD_MEDIATYPE                      = 21;
     CMD_SCHEDULINGINFOS                = 22;
     CMD_RECYCLETAPEFILE                = 23;
+    CMD_ACTIVITYMOUNTRULE              = 24;
+    CMD_DISKINSTANCE                   = 25;
+    CMD_DISKINSTANCESPACE              = 26;
   }
   enum SubCmd {
     SUBCMD_NONE                        =  0;
     SUBCMD_ADD                         =  1;
     SUBCMD_CH                          =  2;
     SUBCMD_ERR                         =  3;
-    SUBCMD_LABEL                       =  4;
     SUBCMD_LS                          =  5;
     SUBCMD_RECLAIM                     =  6;
     SUBCMD_RM                          =  7;
@@ -155,6 +165,7 @@ message AdminCmd {
     SUBCMD_DOWN                        =  9;
     SUBCMD_RETRY                       = 10;
     SUBCMD_SHOW                        = 11;
+    SUBCMD_RESTORE                     = 12;
   }
 
   Cmd cmd                                = 1;    //< The primary command
@@ -198,6 +209,10 @@ enum HeaderType {
   MEDIATYPE_LS                 = 25;    //< cta-admin mediatype ls
   SCHEDULINGINFOS_LS           = 26;    //< cta-admin schedulinginfo ls
   RECYLETAPEFILE_LS            = 27;    //< cta-admin recycletf ls
+  ACTIVITYMOUNTRULE_LS         = 28;    //< cta-admin activitymountrule ls
+  DISKINSTANCE_LS              = 29;    //< cta-admin diskinstance ls
+  DISKINSTANCESPACE_LS         = 30;    //< cta-admin diskinstancespace ls
+
 }
 
 //
@@ -281,7 +296,7 @@ message DriveLsItem {
   string tapepool                           =  9;
   uint64 files_transferred_in_session       = 10;
   uint64 bytes_transferred_in_session       = 11;
-  uint64 latest_bandwidth                   = 12;
+  uint64 latest_bandwidth                   = 12;    // DEPRECATED. Average bandwidth can be calculated as bytes_transferred_in_session/session_elapsed_time.
   uint64 session_id                         = 13;
   uint64 time_since_last_update             = 14;
   uint64 current_priority                   = 15;
@@ -293,6 +308,10 @@ message DriveLsItem {
   string comment                            = 21;
   string reason                             = 22;
   string vo                                 = 23;
+  string disk_system_name                   = 24;
+  uint64 reserved_bytes                     = 25;
+  uint64 session_elapsed_time               = 26;
+  bool logical_library_disabled             = 27;
 }
 
 message FailedRequestLsItem {
@@ -355,6 +374,7 @@ message LogicalLibraryLsItem {
   cta.common.EntryLog creation_log          = 3;
   cta.common.EntryLog last_modification_log = 4;
   string comment                            = 5;
+  string disabled_reason                    = 6;
 }
 
 message MediaTypeLsItem {
@@ -413,6 +433,7 @@ message RepackLsItem {
   uint64 files_left_to_retrieve                     = 22;
   uint64 files_left_to_archive                      = 23;
   uint64 total_failed_files                         = 24;
+  string tapepool                                   = 25;
 }
 
 message RequesterMountRuleLsItem {
@@ -449,6 +470,10 @@ message ShowQueuesItem {
   string vo                                 = 27;
   uint64 read_max_drives                    = 28;
   uint64 write_max_drives                   = 29;
+  repeated string mount_policies            = 30;
+  uint64 youngest_age                       = 31;
+  string highest_priority_mount_policy      = 32;
+  string lowest_request_age_mount_policy    = 33;
 }
 
 message StorageClassLsItem {
@@ -487,6 +512,8 @@ message TapeLsItem {
   string state_reason                       = 26;
   uint64 state_update_time                  = 27;
   string state_modified_by                  = 28;
+  bool dirty                                = 29;
+  string verification_status                = 30;
 }
 
 message Checksum {
@@ -538,13 +565,32 @@ message TapePoolLsItem {
 message DiskSystemLsItem {
   string name                               =  1;
   string file_regexp                        =  2;
-  string free_space_query_url               =  3;
-  uint64 refresh_interval                   =  4;
   uint64 targeted_free_space                =  5;
   uint64 sleep_time                         =  9;
   cta.common.EntryLog creation_log          =  6;
   cta.common.EntryLog last_modification_log =  7;
   string comment                            =  8;
+  string disk_instance                      =  10;
+  string disk_instance_space                =  11;
+}
+
+message DiskInstanceLsItem {
+  string name                               =  1;
+  string comment                            =  2;
+  cta.common.EntryLog creation_log          =  3;
+  cta.common.EntryLog last_modification_log =  4;  
+}
+
+message DiskInstanceSpaceLsItem {
+  string name                               =  1;
+  string disk_instance                      =  2;
+  string comment                            =  3;
+  string free_space_query_url               =  4;
+  uint64 refresh_interval                   =  5;
+  uint64 free_space                         =  6;
+  uint64 last_refresh_time                  =  7;
+  cta.common.EntryLog creation_log          =  8;
+  cta.common.EntryLog last_modification_log =  9;  
 }
 
 message VirtualOrganizationLsItem {
@@ -554,6 +600,8 @@ message VirtualOrganizationLsItem {
   string comment                            =  4;
   uint64 read_max_drives                    =  5;
   uint64 write_max_drives                   =  6;
+  uint64 max_file_size                      =  7;
+  string diskinstance                       =  8;
 }
 
 message Version{
@@ -566,19 +614,20 @@ message VersionItem {
   Version server_version = 2;
   string catalogue_connection_string = 3;
   string catalogue_version = 4;
+  bool is_upgrading = 5;
 }
 
-message PotentialMount {
-  string vid = 1;
-  string tapepool = 2;
-  string vo = 3;
-  string media_type = 4;
-  string vendor = 5;
-  MountType mount_type = 6;
-  uint64 tape_capacity_in_bytes = 7;
-  uint64 mount_policy_priority = 8;
-  uint64 mount_policy_min_request_age = 9;
-  uint64 mount_policy_max_drives_allowed = 10;
+message SchedulingInfoLsItem {
+  string logical_library = 1; 
+  string vid = 2;
+  string tapepool = 3;
+  string vo = 4;
+  string media_type = 5;
+  string vendor = 6;
+  MountType mount_type = 7;
+  uint64 tape_capacity_in_bytes = 8;
+  uint64 mount_policy_priority = 9;
+  uint64 mount_policy_min_request_age = 10;
   uint64 files_queued = 11;
   uint64 bytes_queued = 12;
   uint64 oldest_job_start_time = 13;
@@ -586,12 +635,6 @@ message PotentialMount {
   uint64 sleep_time = 15;
   string disk_system_slept_for = 16;
   uint32 mount_count = 17;
-  string logical_library = 18; 
-}
-
-message SchedulingInfosLsItem {
-  string logical_library = 1;
-  repeated PotentialMount potential_mounts = 2;
 }
 
 message RecycleTapeFileLsItem {
@@ -615,4 +658,14 @@ message RecycleTapeFileLsItem {
   string disk_file_path = 18;
   string reason_log = 19;
   uint64 recycle_log_time = 20;
+}
+
+message ActivityMountRuleLsItem {
+  string disk_instance                      = 1;
+  string activity_mount_rule                = 2;
+  string activity_regex                     = 3;
+  string mount_policy                       = 4;
+  cta.common.EntryLog creation_log          = 5;
+  cta.common.EntryLog last_modification_log = 6;
+  string comment                            = 7;
 }

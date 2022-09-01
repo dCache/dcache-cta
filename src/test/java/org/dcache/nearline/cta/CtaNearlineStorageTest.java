@@ -630,6 +630,7 @@ public class CtaNearlineStorageTest {
               .size(9876543210L)
               .storageClass("a:b")
               .hsm("z")
+              .creationTime(System.currentTimeMillis())
               .pnfsId("0000C9B4E3768770452E8B1B8E0232584872")
               .build();
 
@@ -669,6 +670,7 @@ public class CtaNearlineStorageTest {
               .storageClass(storageInfo.getStorageClass())
               .hsm(storageInfo.getHsm())
               .storageInfo(storageInfo)
+              .creationTime(System.currentTimeMillis())
               .pnfsId("0000C9B4E3768770452E8B1B8E0232584872")
               .build();
 

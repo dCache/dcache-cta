@@ -64,17 +64,23 @@ message Transport {
 
 message Metadata {
   uint64 fid                  =  1;      //< file/container id
-  uint64 pid                  =  2;      //< parent id
-  cta.common.Clock ctime      =  3;      //< change time
-  cta.common.Clock mtime      =  4;      //< modification time
-  cta.common.Clock btime      =  5;      //< birth time
-  cta.common.Clock ttime      =  6;      //< tree modification time
+  uint64 pid                  =  2;      //< parent id (NOT USED BY CTA)
+  cta.common.Clock ctime      =  3;      //< change time (NOT USED BY CTA)
+  cta.common.Clock mtime      =  4;      //< modification time (NOT USED BY CTA)
+  cta.common.Clock btime      =  5;      //< birth time (NOT USED BY CTA)
+  cta.common.Clock ttime      =  6;      //< tree modification time (NOT USED BY CTA)
   cta.common.OwnerId owner    =  7;      //< ownership
   uint64 size                 =  8;      //< size 
-  sint32 mode                 = 10;      //< mode
+  sint32 mode                 = 10;      //< mode (NOT USED BY CTA)
   string lpath                = 11;      //< logical path
   map<string, string> xattr   = 12;      //< xattribute map
   cta.common.ChecksumBlob csb = 13;      //< array of checksums
+
+  // Additions for dCache integration
+
+  string disk_file_id         = 14;      //< String identifier for Disk File ID (= fid above)
+  uint64 archive_file_id      = 15;      //< CTA Archive File ID
+  string storage_class        = 16;      //< CTA Storage Class
 };
 
 message Notification {
@@ -82,5 +88,5 @@ message Notification {
   Client cli                  =  2;      //< client information
   Transport transport         =  3;      //< transport
   Metadata file               =  4;      //< file meta data
-  Metadata directory          =  5;      //< directory meta data
+  Metadata directory          =  5;      //< directory meta data (NOT USED BY CTA)
 }

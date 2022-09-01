@@ -2,6 +2,8 @@ package org.dcache.nearline.cta;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import ch.cern.cta.rpc.CreateResponse;
+import ch.cern.cta.rpc.SchedulerRequest;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Throwables;
 import com.google.common.net.HostAndPort;
@@ -35,6 +37,7 @@ import ch.cern.cta.rpc.ArchiveResponse;
 import ch.cern.cta.rpc.CtaRpcGrpc;
 import ch.cern.cta.rpc.CtaRpcGrpc.CtaRpcStub;
 import ch.cern.cta.rpc.RetrieveResponse;
+import java.util.concurrent.atomic.AtomicLong;
 import org.dcache.nearline.cta.xrootd.DataMover;
 import org.dcache.pool.nearline.spi.FlushRequest;
 import org.dcache.pool.nearline.spi.NearlineStorage;
@@ -164,81 +167,121 @@ public class CtaNearlineStorage implements NearlineStorage {
      */
     @Override
     public void flush(Iterable<FlushRequest> requests) {
-        for (var fr : requests) {
 
-            var id = fr.getFileAttributes().getPnfsId().toString();
-
-            var r = new ForwardingFlushRequest() {
-                @Override
-                protected FlushRequest delegate() {
-                    return fr;
-                }
-
-                @Override
-                public void failed(Exception e) {
-                    pendingRequests.remove(id);
-                    super.failed(e);
-                }
-
-                @Override
-                public void failed(int i, String s) {
-                    pendingRequests.remove(id);
-                    super.failed(i, s);
-                }
-
-                @Override
-                public void completed(Set<URI> uris) {
-                    pendingRequests.remove(id);
-                    super.completed(uris);
-                }
-            };
+        for (FlushRequest fr : requests) {
 
             try {
-                r.activate().get();
+                fr.activate().get();
+                final AtomicLong id = new AtomicLong();
+
+                var createRequest = ctaRequestFactory.valueOf(fr.getFileAttributes());
+                cta.create(createRequest, new StreamObserver<CreateResponse>() {
+                    @Override
+                    public void onNext(CreateResponse createResponse) {
+                        LOGGER.info("{}: Create new archive id {} for {}",
+                              fr.getId(),
+                              createResponse.getArchiveFileId(),
+                              fr.getFileAttributes().getPnfsId()
+                        );
+                        id.set(createResponse.getArchiveFileId());
+                    }
+
+                    @Override
+                    public void onError(Throwable t) {
+                        LOGGER.error("Failed to submit create request {}", t.getMessage());
+                        Exception e =
+                              t instanceof Exception ? Exception.class.cast(t) : new Exception(t);
+                        fr.failed(e);
+                    }
+
+                    @Override
+                    public void onCompleted() {
+                        submitFlush(fr, id.get());
+                    }
+                });
+
             } catch (ExecutionException | InterruptedException e) {
                 Throwable t = Throwables.getRootCause(e);
                 LOGGER.error("Failed to activate flush request: {}", t.getMessage());
-                r.failed(e);
-                continue;
+                fr.failed(e);
+            }
+        }
+
+    }
+
+    /**
+     * Flush all files in {@code requests} to nearline storage.
+     *
+     * @param fr
+     * @param ctaArchiveId
+     */
+    public void submitFlush(FlushRequest fr, long ctaArchiveId) {
+
+        var id = fr.getFileAttributes().getPnfsId().toString();
+
+        var r = new ForwardingFlushRequest() {
+            @Override
+            protected FlushRequest delegate() {
+                return fr;
             }
 
-            var ar = ctaRequestFactory.valueOf(r);
-            cta.archive(ar, new StreamObserver<>() {
+            @Override
+            public void failed(Exception e) {
+                pendingRequests.remove(id);
+                super.failed(e);
+            }
 
-                @Override
-                public void onNext(ArchiveResponse response) {
-                    LOGGER.info("{} : {} : archive id {}, request: {}",
-                          r.getId(),
-                          r.getFileAttributes().getPnfsId(),
-                          response.getFid(),
-                          response.getReqId()
-                    );
+            @Override
+            public void failed(int i, String s) {
+                pendingRequests.remove(id);
+                super.failed(i, s);
+            }
 
-                    var cancelRequest = ctaRequestFactory.cancelValueOf(ar, response);
-                    pendingRequests.put(id, new PendingRequest(r) {
-                              @Override
-                              public void cancel() {
-                                  // on cancel send the request to CTA; on success cancel the requests
-                                  Runnable r = super::cancel;
-                                  cta.delete(cancelRequest, new OnSuccessStreamObserver(r));
-                              }
+            @Override
+            public void completed(Set<URI> uris) {
+                pendingRequests.remove(id);
+                super.completed(uris);
+            }
+        };
+
+        var ar = ctaRequestFactory.valueOf(r, ctaArchiveId);
+        cta.archive(ar, new StreamObserver<>() {
+
+            @Override
+            public void onNext(ArchiveResponse response) {
+                LOGGER.info("{} : {} : archive id {}, request: {}",
+                      r.getId(),
+                      r.getFileAttributes().getPnfsId(),
+                      ctaArchiveId,
+                      response.getObjectstoreId()
+                );
+
+                var cancelRequest = SchedulerRequest.newBuilder(ar)
+                      .setObjectstoreId(response.getObjectstoreId())
+                      .build();
+                pendingRequests.put(id, new PendingRequest(r) {
+                          @Override
+                          public void cancel() {
+                              // on cancel send the request to CTA; on success cancel the requests
+                              Runnable r = super::cancel;
+                              cta.delete(cancelRequest, new OnSuccessStreamObserver(r));
                           }
-                    );
-                }
+                      }
+                );
+            }
 
-                @Override
-                public void onError(Throwable t) {
-                    LOGGER.error("Failed to submit archive request {}", t.getMessage());
-                    Exception e =
-                          t instanceof Exception ? Exception.class.cast(t) : new Exception(t);
-                    r.failed(e);
-                }
+            @Override
+            public void onError(Throwable t) {
+                LOGGER.error("Failed to submit archive request {}", t.getMessage());
+                Exception e =
+                      t instanceof Exception ? Exception.class.cast(t) : new Exception(t);
+                r.failed(e);
+            }
 
-                @Override
-                public void onCompleted() {
-                }
-            });
-        }
+            @Override
+            public void onCompleted() {
+            }
+        });
     }
 
     /**
@@ -295,9 +338,11 @@ public class CtaNearlineStorage implements NearlineStorage {
                     LOGGER.info("{} : {} : request: {}",
                           r.getId(),
                           r.getFileAttributes().getPnfsId(),
-                          response.getReqId()
+                          response.getObjectstoreId()
                     );
-                    var cancelRequest = ctaRequestFactory.cancelValueOf(rr, response);
+                    var cancelRequest = SchedulerRequest.newBuilder(rr)
+                          .setObjectstoreId(response.getObjectstoreId())
+                          .build();
                     pendingRequests.put(id, new PendingRequest(r) {
                               @Override
                               public void cancel() {
@@ -454,10 +499,12 @@ public class CtaNearlineStorage implements NearlineStorage {
             credentials = InsecureChannelCredentials.create();
         }
 
-        channel = NettyChannelBuilder.forAddress(ctaEndpoint.getHost(), ctaEndpoint.getPort(), credentials)
+        channel = NettyChannelBuilder.forAddress(ctaEndpoint.getHost(), ctaEndpoint.getPort(),
+                    credentials)
               .disableServiceConfigLookUp() // no lookup in DNS for service record
               .channelType(NioSocketChannel.class) // use Nio event loop instead of epoll
-              .eventLoopGroup(new NioEventLoopGroup(0, new ThreadFactoryBuilder().setNameFormat("cta-grpc-worker-%d").build()))
+              .eventLoopGroup(new NioEventLoopGroup(0,
+                    new ThreadFactoryBuilder().setNameFormat("cta-grpc-worker-%d").build()))
               .directExecutor() // use netty threads
               .build();
 

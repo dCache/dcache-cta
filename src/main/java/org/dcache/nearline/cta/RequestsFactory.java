@@ -1,21 +1,22 @@
 package org.dcache.nearline.cta;
 
+import ch.cern.cta.rpc.SchedulerRequest;
 import com.google.common.io.BaseEncoding;
 import com.google.protobuf.ByteString;
 import cta.common.CtaCommon;
+import cta.common.CtaCommon.Clock;
+import cta.common.CtaCommon.OwnerId;
 import cta.eos.CtaEos;
+import cta.eos.CtaEos.Metadata;
+import cta.eos.CtaEos.Notification;
 import cta.eos.CtaEos.Transport;
+import cta.eos.CtaEos.Workflow;
+import cta.eos.CtaEos.Workflow.EventType;
 import java.io.File;
+import java.time.Instant;
 import java.util.Objects;
-import ch.cern.cta.rpc.ArchiveResponse;
-import ch.cern.cta.rpc.CancelRetrieveRequest;
-import ch.cern.cta.rpc.DeleteRequest;
-import ch.cern.cta.rpc.FileInfo;
-import ch.cern.cta.rpc.RetrieveRequest;
-import ch.cern.cta.rpc.RetrieveResponse;
 import org.dcache.namespace.FileAttribute;
 import org.dcache.pool.nearline.spi.FlushRequest;
-import ch.cern.cta.rpc.ArchiveRequest;
 import org.dcache.pool.nearline.spi.RemoveRequest;
 import org.dcache.pool.nearline.spi.StageRequest;
 import org.dcache.util.ChecksumType;
@@ -66,7 +67,41 @@ public class RequestsFactory {
         this.transportProvider = transportProvider;
     }
 
-    public ArchiveRequest valueOf(FlushRequest request) {
+    public SchedulerRequest valueOf(FileAttributes dcacheFileAttrs) {
+
+        var id = dcacheFileAttrs.getPnfsId().toString();
+        var md = Metadata.newBuilder()
+              .setSize(dcacheFileAttrs.getSize())
+              .setDiskFileId(id)
+              .setStorageClass(dcacheFileAttrs.getStorageClass() + "@" + dcacheFileAttrs.getHsm())
+              .setOwner(
+                    OwnerId.newBuilder()
+                          .setUid(1)
+                          .setGid(1)
+                          .build()
+              )
+              .setBtime(Clock.newBuilder()
+                    .setSec(dcacheFileAttrs.isDefined(FileAttribute.CREATION_TIME) ? dcacheFileAttrs.getCreationTime() / 1000 : Instant.now().getEpochSecond())
+                    .build())
+              .setLpath("/" + id)
+              .build();
+
+        var notification = Notification.newBuilder()
+              .setCli(client)
+              .setFile(md)
+              .setWf(Workflow.newBuilder()
+                    .setInstance(instance)
+                    .setEvent(EventType.CREATE)
+                    .build())
+              .build();
+
+        return SchedulerRequest.newBuilder()
+              .setMd(notification)
+              .build();
+    }
+
+
+    public SchedulerRequest valueOf(FlushRequest request, long archiveId) {
 
         FileAttributes dcacheFileAttrs = request.getFileAttributes();
 
@@ -100,25 +135,40 @@ public class RequestsFactory {
             );
         }
 
-        var ctaFileInfo = FileInfo.newBuilder()
+        var md = Metadata.newBuilder()
+              .setArchiveFileId(archiveId)
               .setSize(dcacheFileAttrs.getSize())
-              .setFid(dcacheFileAttrs.getPnfsId().toString())
+              .setDiskFileId(id)
               .setStorageClass(dcacheFileAttrs.getStorageClass() + "@" + dcacheFileAttrs.getHsm())
+              .setOwner(
+                    OwnerId.newBuilder()
+                          .setUid(1)
+                          .setGid(1)
+                          .build()
+              )
+              .setBtime(Clock.newBuilder()
+                    .setSec(dcacheFileAttrs.isDefined(FileAttribute.CREATION_TIME) ? dcacheFileAttrs.getCreationTime() / 1000 : Instant.now().getEpochSecond())
+                    .build())
               .setCsb(checksumBuilder.build())
-              .setGid(1)
-              .setUid(1)
-              .setPath("/" + id)
+              .setLpath("/" + id)
               .build();
 
-        return ArchiveRequest.newBuilder()
-              .setInstance(instance)
+        var notification = Notification.newBuilder()
               .setCli(client)
               .setTransport(transport)
-              .setFile(ctaFileInfo)
+              .setFile(md)
+              .setWf(Workflow.newBuilder()
+                    .setInstance(instance)
+                    .setEvent(EventType.CLOSEW)
+                    .build())
+              .build();
+
+        return SchedulerRequest.newBuilder()
+              .setMd(notification)
               .build();
     }
 
-    public DeleteRequest valueOf(RemoveRequest request) {
+    public SchedulerRequest valueOf(RemoveRequest request) {
 
         // we expect uri in form: cta://cta/<pnfsid>?archiveid=xxx
 
@@ -126,22 +176,33 @@ public class RequestsFactory {
         var id = new File(uri.getPath()).getName();
         long archiveId = Long.parseLong(uri.getQuery().substring("archiveid=".length()));
 
-        var ctaFileInfo = FileInfo.newBuilder()
-              .setFid(id)
-              .setGid(1)
-              .setUid(1)
-              .setPath("/" + id)
+        var md = Metadata.newBuilder()
+              .setArchiveFileId(archiveId)
+              .setDiskFileId(id)
+              .setOwner(
+                    OwnerId.newBuilder()
+                          .setUid(1)
+                          .setGid(1)
+                          .build()
+              )
+              .setLpath("/" + id)
               .build();
 
-        return DeleteRequest.newBuilder()
-              .setInstance(instance)
+        var notification = Notification.newBuilder()
               .setCli(client)
-              .setFile(ctaFileInfo)
-              .setArchiveId(archiveId)
+              .setFile(md)
+              .setWf(Workflow.newBuilder()
+                    .setInstance(instance)
+                    .setEvent(EventType.DELETE)
+                    .build())
+              .build();
+
+        return SchedulerRequest.newBuilder()
+              .setMd(notification)
               .build();
     }
 
-    public RetrieveRequest valueOf(StageRequest request) {
+    public SchedulerRequest valueOf(StageRequest request) {
 
         FileAttributes dcacheFileAttrs = request.getFileAttributes();
 
@@ -153,43 +214,32 @@ public class RequestsFactory {
 
         var transport = transportProvider.getTransport(id);
 
-        var ctaFileInfo = FileInfo.newBuilder()
+        var md = Metadata.newBuilder()
+              .setArchiveFileId(archiveId)
               .setSize(dcacheFileAttrs.getSize())
-              .setFid(dcacheFileAttrs.getPnfsId().toString())
+              .setDiskFileId(id)
               .setStorageClass(dcacheFileAttrs.getStorageClass() + "@" + dcacheFileAttrs.getHsm())
-              .setGid(1)
-              .setUid(1)
-              .setPath("/" + id)
+              .setOwner(
+                    OwnerId.newBuilder()
+                          .setUid(1)
+                          .setGid(1)
+                          .build()
+              )
+              .setLpath("/" + id)
               .build();
 
-        return RetrieveRequest.newBuilder()
-              .setInstance(instance)
+        var notification = Notification.newBuilder()
               .setCli(client)
               .setTransport(transport)
-              .setFile(ctaFileInfo)
-              .setArchiveId(archiveId)
+              .setFile(md)
+              .setWf(Workflow.newBuilder()
+                    .setInstance(instance)
+                    .setEvent(EventType.PREPARE)
+                    .build())
+              .build();
+
+        return SchedulerRequest.newBuilder()
+              .setMd(notification)
               .build();
     }
-
-    public CancelRetrieveRequest cancelValueOf(RetrieveRequest request, RetrieveResponse response) {
-
-        return CancelRetrieveRequest.newBuilder()
-              .setInstance(instance)
-              .setCli(client)
-              .setArchiveId(request.getArchiveId())
-              .setReqId(response.getReqId())
-              .build();
-    }
-
-    public DeleteRequest cancelValueOf(ArchiveRequest request, ArchiveResponse response) {
-
-        return DeleteRequest.newBuilder()
-              .setInstance(instance)
-              .setCli(client)
-              .setFile(request.getFile())
-              .setArchiveId(response.getFid())
-              .setReqId(response.getReqId())
-              .build();
-    }
-
 }
