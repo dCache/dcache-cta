@@ -22,8 +22,8 @@ public class RequestsFactoryTest {
 
     private final CtaTransportProvider transportProvider = new CtaTransportProvider() {
         @Override
-        public Transport getTransport(String id) {
-            String reporterUrl = "eosQuery://localhost/success/" + id;
+        public Transport getTransport(String id, long archiveId) {
+            String reporterUrl = "eosQuery://localhost/success/" + id + "?archiveid=" + archiveId;
             String errorReporter = "eosQuery://localhost/error/" + id + "?error=";
 
             return Transport.newBuilder()

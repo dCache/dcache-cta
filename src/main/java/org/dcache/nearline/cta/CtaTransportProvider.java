@@ -10,9 +10,10 @@ public interface CtaTransportProvider {
     /**
      * Get transport used by CTA for IO, error and success reporting.
      *
-     * @param id request id.
+     * @param diskFileId String identifier for Disk File ID (a-ka pnfsid)
+     * @param ctaArchiveId CTA Archive File ID.
      * @return transport used by CTA for IO, error and success reporting.
      */
-    Transport getTransport(String id);
+    Transport getTransport(String diskFileId, long ctaArchiveId);
 
 }

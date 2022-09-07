@@ -36,7 +36,7 @@ public class DataMoverTest {
 
     @Test(expected = Exception.class)
     public void testBindError() throws UnknownHostException {
-        URI uri = URI.create(dataMover.getTransport("1").getDstUrl());
+        URI uri = URI.create(dataMover.getTransport("1", 1).getDstUrl());
         new DataMover("foo", "bar",
               new InetSocketAddress(InetAddress.getLocalHost(), uri.getPort()), requests)
               .startAsync()
@@ -45,7 +45,7 @@ public class DataMoverTest {
 
     @Test
     public void testGetTransport() {
-        var transport = dataMover.getTransport("1");
+        var transport = dataMover.getTransport("1", 1);
 
         assertThat("destination IRL is not set", transport.getDstUrl(), not(emptyOrNullString()));
         assertThat("error report URL is not set", transport.getErrorReportUrl(),

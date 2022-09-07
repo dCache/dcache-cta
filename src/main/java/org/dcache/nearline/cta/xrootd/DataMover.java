@@ -180,14 +180,14 @@ public class DataMover extends AbstractIdleService implements CtaTransportProvid
     }
 
     @Override
-    public Transport getTransport(String id) {
+    public Transport getTransport(String id, long ctaArchiveId) {
 
         Preconditions.checkState(cf != null, "Service is not started");
         Preconditions.checkState(cf.isDone(), "Service is not bound yet.");
         Preconditions.checkState(url != null, "service url is null");
 
         // REVISIT:
-        String reporterUrl = "eosQuery://" + url + "/success/" + id;
+        String reporterUrl = "eosQuery://" + url + "/success/" + id + "?archiveid=" + ctaArchiveId;
         String errorReporter = "eosQuery://" + url + "/error/" + id + "?error=";
 
         return Transport.newBuilder()

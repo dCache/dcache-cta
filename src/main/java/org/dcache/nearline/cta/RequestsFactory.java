@@ -106,7 +106,7 @@ public class RequestsFactory {
         FileAttributes dcacheFileAttrs = request.getFileAttributes();
 
         var id = dcacheFileAttrs.getPnfsId().toString();
-        Transport transport = transportProvider.getTransport(id);
+        Transport transport = transportProvider.getTransport(id, archiveId);
 
         var checksumBuilder = CtaCommon.ChecksumBlob.newBuilder();
         if (dcacheFileAttrs.isDefined(FileAttribute.CHECKSUM)) {
@@ -212,7 +212,7 @@ public class RequestsFactory {
         var id = dcacheFileAttrs.getPnfsId().toString();
         long archiveId = Long.parseLong(uri.getQuery().substring("archiveid=".length()));
 
-        var transport = transportProvider.getTransport(id);
+        var transport = transportProvider.getTransport(id, archiveId);
 
         var md = Metadata.newBuilder()
               .setArchiveFileId(archiveId)
