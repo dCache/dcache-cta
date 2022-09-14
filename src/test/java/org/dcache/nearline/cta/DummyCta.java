@@ -27,6 +27,8 @@ public class DummyCta {
     private final Server server;
     private volatile boolean fail;
 
+    private volatile boolean drop;
+
     public DummyCta(File cert, File key) throws Exception {
         server = NettyServerBuilder.forPort(0)
               .sslContext(GrpcSslContexts.forServer(cert, key)
@@ -40,7 +42,6 @@ public class DummyCta {
               .addService(new CtaSvc())
               .directExecutor()
               .build();
-        fail = false;
     }
 
     public void start() throws IOException {
@@ -49,7 +50,9 @@ public class DummyCta {
 
     public void shutdown() throws InterruptedException {
         server.shutdown();
-        server.awaitTermination();
+        if(!server.awaitTermination(1, TimeUnit.SECONDS)) {
+            server.shutdownNow();
+        }
     }
 
     public String getConnectString() {
@@ -60,10 +63,18 @@ public class DummyCta {
         fail = true;
     }
 
+    public void drop() {
+        drop = true;
+    }
     private class CtaSvc extends CtaRpcGrpc.CtaRpcImplBase {
 
         @Override
         public void version(Empty request, StreamObserver<Version> responseObserver) {
+
+            if (drop) {
+                return;
+            }
+
             if (!fail) {
                 responseObserver.onNext(
                       Version.newBuilder()
@@ -80,6 +91,10 @@ public class DummyCta {
         @Override
         public void create(SchedulerRequest request,
               StreamObserver<CreateResponse> responseObserver) {
+
+            if (drop) {
+                return;
+            }
 
             if (request.getMd().getWf().getInstance().getName().isEmpty()) {
                 responseObserver.onError(new StatusException(Status.INVALID_ARGUMENT));
@@ -127,6 +142,10 @@ public class DummyCta {
         @Override
         public void archive(SchedulerRequest request,
               StreamObserver<ArchiveResponse> responseObserver) {
+
+            if (drop) {
+                return;
+            }
 
             if (request.getMd().getWf().getInstance().getName().isEmpty()) {
                 responseObserver.onError(new StatusException(Status.INVALID_ARGUMENT));
@@ -179,6 +198,10 @@ public class DummyCta {
         public void retrieve(SchedulerRequest request,
               StreamObserver<RetrieveResponse> responseObserver) {
 
+            if (drop) {
+                return;
+            }
+
             if (request.getMd().getWf().getInstance().getName().isEmpty()) {
                 responseObserver.onError(new StatusException(Status.INVALID_ARGUMENT));
                 return;
@@ -230,6 +253,10 @@ public class DummyCta {
         public void cancelRetrieve(SchedulerRequest request,
               StreamObserver<Empty> responseObserver) {
 
+            if (drop) {
+                return;
+            }
+
             if (request.getMd().getWf().getInstance().getName().isEmpty()) {
                 responseObserver.onError(new StatusException(Status.INVALID_ARGUMENT));
                 return;
@@ -262,6 +289,10 @@ public class DummyCta {
 
         @Override
         public void delete(SchedulerRequest request, StreamObserver<Empty> responseObserver) {
+
+            if (drop) {
+                return;
+            }
 
             if (request.getMd().getWf().getInstance().getName().isEmpty()) {
                 responseObserver.onError(new StatusException(Status.INVALID_ARGUMENT));
@@ -310,8 +341,12 @@ public class DummyCta {
     }
 
     public void waitToReply() throws AssertionError {
+        waitToReply(1);
+    }
+
+    public void waitToReply(int n) throws AssertionError {
         try {
-            TimeUnit.SECONDS.sleep(1);
+            TimeUnit.SECONDS.sleep(n);
         } catch (InterruptedException e) {
             throw new AssertionError("Should neve happen", e);
         }

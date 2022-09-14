@@ -616,6 +616,52 @@ public class CtaNearlineStorageTest {
         assertEquals("pending request count not zero", 0, driver.getPendingRequestsCount());
     }
 
+    @Test
+    public void testFailOnLostStageMessage() {
+
+        var request = mockedStageRequest();
+        driver = new CtaNearlineStorage("foo", "bar");
+        driver.configure(drvConfig);
+        driver.start();
+
+        cta.drop();
+        driver.stage(Set.of(request));
+
+        cta.waitToReply(4);
+        verify(request, times(1)).failed(any(io.grpc.StatusRuntimeException.class));
+    }
+
+
+    @Test
+    public void testFailOnLostFlushMessage() {
+
+        var request = mockedFlushRequest();
+        driver = new CtaNearlineStorage("foo", "bar");
+        driver.configure(drvConfig);
+        driver.start();
+
+        cta.drop();
+        driver.flush(Set.of(request));
+
+        cta.waitToReply(4);
+        verify(request, times(1)).failed(any(io.grpc.StatusRuntimeException.class));
+    }
+
+    @Test
+    public void testFailOnLostDeleteMessage() {
+
+        var request = mockedRemoveRequest();
+        driver = new CtaNearlineStorage("foo", "bar");
+        driver.configure(drvConfig);
+        driver.start();
+
+        cta.drop();
+        driver.remove(Set.of(request));
+
+        cta.waitToReply(4);
+        verify(request, times(1)).failed(any(io.grpc.StatusRuntimeException.class));
+    }
+
     void waitToComplete() {
         try {
             waitForComplete.get(1, TimeUnit.SECONDS);

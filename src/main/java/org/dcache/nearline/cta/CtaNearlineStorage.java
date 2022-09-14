@@ -12,6 +12,7 @@ import com.google.protobuf.Empty;
 import cta.admin.CtaAdmin.Version;
 import io.grpc.ChannelCredentials;
 import io.grpc.ConnectivityState;
+import io.grpc.Deadline;
 import io.grpc.InsecureChannelCredentials;
 import io.grpc.ManagedChannel;
 import io.grpc.TlsChannelCredentials;
@@ -37,6 +38,7 @@ import ch.cern.cta.rpc.ArchiveResponse;
 import ch.cern.cta.rpc.CtaRpcGrpc;
 import ch.cern.cta.rpc.CtaRpcGrpc.CtaRpcStub;
 import ch.cern.cta.rpc.RetrieveResponse;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import org.dcache.nearline.cta.xrootd.DataMover;
 import org.dcache.pool.nearline.spi.FlushRequest;
@@ -161,6 +163,17 @@ public class CtaNearlineStorage implements NearlineStorage {
     }
 
     /**
+     * How long we should expect CTA frontend to respond. We expect instant response, thus let as be
+     * a nice person :).
+     * <p>
+     * NOTE: as deadline is a point in time (not a timeout per request), we have to set it for each
+     * request.
+     */
+    private Deadline getRequestDeadline() {
+        return Deadline.after(3, TimeUnit.SECONDS);
+    }
+
+    /**
      * Flush all files in {@code requests} to nearline storage.
      *
      * @param requests
@@ -175,7 +188,7 @@ public class CtaNearlineStorage implements NearlineStorage {
                 final AtomicLong id = new AtomicLong();
 
                 var createRequest = ctaRequestFactory.valueOf(fr.getFileAttributes());
-                cta.create(createRequest, new StreamObserver<CreateResponse>() {
+                cta.withDeadline(getRequestDeadline()).create(createRequest, new StreamObserver<CreateResponse>() {
                     @Override
                     public void onNext(CreateResponse createResponse) {
                         LOGGER.info("{}: Create new archive id {} for {}",
@@ -245,7 +258,7 @@ public class CtaNearlineStorage implements NearlineStorage {
         };
 
         var ar = ctaRequestFactory.valueOf(r, ctaArchiveId);
-        cta.archive(ar, new StreamObserver<>() {
+        cta.withDeadline(getRequestDeadline()).archive(ar, new StreamObserver<>() {
 
             @Override
             public void onNext(ArchiveResponse response) {
@@ -332,7 +345,7 @@ public class CtaNearlineStorage implements NearlineStorage {
 
             var rr = ctaRequestFactory.valueOf(r);
 
-            cta.retrieve(rr, new StreamObserver<>() {
+            cta.withDeadline(getRequestDeadline()).retrieve(rr, new StreamObserver<>() {
                 @Override
                 public void onNext(RetrieveResponse response) {
                     LOGGER.info("{} : {} : request: {}",
@@ -348,7 +361,7 @@ public class CtaNearlineStorage implements NearlineStorage {
                               public void cancel() {
                                   // on cancel send the request to CTA; on success cancel the requests
                                   Runnable r = super::cancel;
-                                  cta.cancelRetrieve(cancelRequest, new OnSuccessStreamObserver(r));
+                                  cta.withDeadline(getRequestDeadline()).cancelRetrieve(cancelRequest, new OnSuccessStreamObserver(r));
                               }
                           }
                     );
@@ -379,7 +392,7 @@ public class CtaNearlineStorage implements NearlineStorage {
 
         for (var r : requests) {
             var deleteRequest = ctaRequestFactory.valueOf(r);
-            cta.delete(deleteRequest, new StreamObserver<>() {
+            cta.withDeadline(getRequestDeadline()).delete(deleteRequest, new StreamObserver<>() {
                 @Override
                 public void onNext(Empty value) {
                     LOGGER.info("Delete request {} submitted {}",
