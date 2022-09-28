@@ -53,6 +53,7 @@ import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.regex.Pattern;
 import org.dcache.nearline.cta.PendingRequest;
 import org.dcache.pool.nearline.spi.FlushRequest;
 import org.dcache.pool.nearline.spi.NearlineRequest;
@@ -86,6 +87,9 @@ public class DataServerHandler extends XrootdRequestHandler {
 
     private static final Logger LOGGER =
           LoggerFactory.getLogger(DataServerHandler.class);
+
+    // expected uri: /success/0000A3D4FAF099E241FC830295D1DAD54DF2?archiveid=89502
+    private final static Pattern SUCCESS_URI = Pattern.compile(".*archiveid=(?<archiveid>\\d+).*");
 
     /**
      * A record that binds open file and request.
@@ -400,11 +404,12 @@ public class DataServerHandler extends XrootdRequestHandler {
                     LOGGER.error("Error report on flushing: {} : {}", requestId, error);
                     r.failed(CacheException.SERVICE_UNAVAILABLE, error);
                 } else if (query.startsWith("/success/")) {
-                    if (!uriQuery.startsWith(idPrefix)) {
+
+                    var m = SUCCESS_URI.matcher(query);
+                    if (!m.find()) {
                         throw new XrootdException(kXR_ArgInvalid, "Invalid success uri");
                     }
-                    // validate that id is a long
-                    var archiveId = Long.parseLong(uriQuery.substring(idPrefix.length()));
+                    var archiveId = m.group("archiveid");
                     var id = getPnfsId(r);
                     var hsmUrl = URI.create(
                           hsmType + "://" + hsmName + "/" + id + "?archiveid=" + archiveId);
