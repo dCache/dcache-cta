@@ -4,6 +4,7 @@ import static org.dcache.xrootd.protocol.XrootdProtocol.DATA_SERVER;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
+import com.google.common.net.InetAddresses;
 import com.google.common.util.concurrent.AbstractIdleService;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import cta.eos.CtaEos.Transport;
@@ -100,7 +101,7 @@ public class DataMover extends AbstractIdleService implements CtaTransportProvid
                       } else {
                           InetSocketAddress sa = (InetSocketAddress) channelFuture.channel()
                                 .localAddress();
-                          url = sa.getAddress().getHostAddress() + ":" + sa.getPort();
+                          url = InetAddresses.toUriString(sa.getAddress()) + ":" + sa.getPort();
                           LOGGER.info("Xroot IO mover started on: {}", url);
                           cf.complete(null);
                       }
