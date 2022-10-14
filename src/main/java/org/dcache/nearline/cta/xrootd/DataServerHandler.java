@@ -64,8 +64,11 @@ import org.dcache.util.Strings;
 import org.dcache.util.TimeUtils;
 import org.dcache.xrootd.core.XrootdException;
 import org.dcache.xrootd.core.XrootdRequestHandler;
+import org.dcache.xrootd.core.XrootdSessionIdentifier;
 import org.dcache.xrootd.protocol.messages.CloseRequest;
 import org.dcache.xrootd.protocol.messages.EndSessionRequest;
+import org.dcache.xrootd.protocol.messages.LoginRequest;
+import org.dcache.xrootd.protocol.messages.LoginResponse;
 import org.dcache.xrootd.protocol.messages.OkResponse;
 import org.dcache.xrootd.protocol.messages.OpenRequest;
 import org.dcache.xrootd.protocol.messages.OpenResponse;
@@ -175,6 +178,12 @@ public class DataServerHandler extends XrootdRequestHandler {
     protected ProtocolResponse doOnProtocolRequest(
           ChannelHandlerContext ctx, ProtocolRequest msg) {
         return new ProtocolResponse(msg, DATA_SERVER);
+    }
+
+    @Override
+    protected Object doOnLogin(ChannelHandlerContext ctx, LoginRequest msg) throws XrootdException {
+        XrootdSessionIdentifier sessionId = new XrootdSessionIdentifier();
+        return new LoginResponse(msg, sessionId, "");
     }
 
     @Override
