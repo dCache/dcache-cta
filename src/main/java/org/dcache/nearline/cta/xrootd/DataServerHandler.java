@@ -307,6 +307,8 @@ public class DataServerHandler extends XrootdRequestHandler {
             FileChannel fileChannel = getOpenFile(msg.getFileHandle()).fileChannel();
             fileChannel.position(msg.getWriteOffset());
             msg.getData(fileChannel);
+            // REVISIT!!! this should happen automatically!
+            msg.retain();
             return withOk(msg);
         } catch (IOException e) {
             throw new XrootdException(kXR_IOError, e.getMessage());
