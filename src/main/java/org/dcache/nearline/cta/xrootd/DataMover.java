@@ -19,6 +19,7 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.logging.LoggingHandler;
+import java.net.Inet6Address;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.List;
@@ -101,7 +102,14 @@ public class DataMover extends AbstractIdleService implements CtaTransportProvid
                       } else {
                           InetSocketAddress sa = (InetSocketAddress) channelFuture.channel()
                                 .localAddress();
-                          url = InetAddresses.toUriString(sa.getAddress()) + ":" + sa.getPort();
+
+                          var addr = sa.getAddress();
+                          var host = addr.getCanonicalHostName();
+                          if (InetAddresses.isInetAddress(host) && addr instanceof Inet6Address) {
+                              host = "[" + host  + "]";
+                          }
+
+                          url = host + ":" + sa.getPort();
                           LOGGER.info("Xroot IO mover started on: {}", url);
                           cf.complete(null);
                       }
