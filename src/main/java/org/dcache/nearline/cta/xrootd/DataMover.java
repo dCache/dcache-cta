@@ -37,7 +37,10 @@ import org.dcache.xrootd.core.XrootdEncoder;
 import org.dcache.xrootd.core.XrootdHandshakeHandler;
 import org.dcache.xrootd.plugins.ChannelHandlerFactory;
 import org.dcache.xrootd.plugins.ChannelHandlerProvider;
+import org.dcache.xrootd.security.SigningPolicy;
+import org.dcache.xrootd.security.TLSSessionInfo;
 import org.dcache.xrootd.stream.ChunkedResponseWriteHandler;
+import org.dcache.xrootd.util.ServerProtocolFlags;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -165,9 +168,20 @@ public class DataMover extends AbstractIdleService implements CtaTransportProvid
                 pipeline.addLast("plugin:" + factory.getName(), factory.createHandler());
             }
 
+
+            /*
+             *  Placeholders, no Sigver and no TLS support yet.
+             */
+            SigningPolicy signingPolicy = new SigningPolicy();
+            ServerProtocolFlags flags = new ServerProtocolFlags(0);
+            TLSSessionInfo tlsSessionInfo = new TLSSessionInfo(flags);
+
+            DataServerHandler dataServer = new DataServerHandler(hsmType, hsmName, pendingRequests);
+            dataServer.setSigningPolicy(signingPolicy);
+            dataServer.setTlsSessionInfo(tlsSessionInfo);
+
             pipeline.addLast("chunk-writer", new ChunkedResponseWriteHandler());
-            pipeline.addLast("data-server",
-                  new DataServerHandler(hsmType, hsmName, pendingRequests));
+            pipeline.addLast("data-server", dataServer);
         }
 
         public final ChannelHandlerFactory createHandlerFactory(String plugin)

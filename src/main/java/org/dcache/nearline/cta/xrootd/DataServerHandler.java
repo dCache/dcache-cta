@@ -63,6 +63,7 @@ import org.dcache.util.ChecksumType;
 import org.dcache.util.Strings;
 import org.dcache.util.TimeUtils;
 import org.dcache.xrootd.core.XrootdException;
+import org.dcache.xrootd.core.XrootdProtocolRequestHandler;
 import org.dcache.xrootd.core.XrootdRequestHandler;
 import org.dcache.xrootd.core.XrootdSessionIdentifier;
 import org.dcache.xrootd.protocol.messages.CloseRequest;
@@ -86,7 +87,7 @@ import org.dcache.xrootd.util.FileStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class DataServerHandler extends XrootdRequestHandler {
+public class DataServerHandler extends XrootdProtocolRequestHandler {
 
     private static final Logger LOGGER =
           LoggerFactory.getLogger(DataServerHandler.class);
@@ -172,12 +173,6 @@ public class DataServerHandler extends XrootdRequestHandler {
             me.getUncaughtExceptionHandler().uncaughtException(me, t);
         }
         ctx.close();
-    }
-
-    @Override
-    protected ProtocolResponse doOnProtocolRequest(
-          ChannelHandlerContext ctx, ProtocolRequest msg) {
-        return new ProtocolResponse(msg, DATA_SERVER);
     }
 
     @Override
