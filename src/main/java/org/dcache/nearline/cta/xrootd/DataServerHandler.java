@@ -16,7 +16,6 @@
  */
 package org.dcache.nearline.cta.xrootd;
 
-import static org.dcache.xrootd.protocol.XrootdProtocol.DATA_SERVER;
 import static org.dcache.xrootd.protocol.XrootdProtocol.kXR_ArgInvalid;
 import static org.dcache.xrootd.protocol.XrootdProtocol.kXR_FileNotOpen;
 import static org.dcache.xrootd.protocol.XrootdProtocol.kXR_IOError;
@@ -64,7 +63,6 @@ import org.dcache.util.Strings;
 import org.dcache.util.TimeUtils;
 import org.dcache.xrootd.core.XrootdException;
 import org.dcache.xrootd.core.XrootdProtocolRequestHandler;
-import org.dcache.xrootd.core.XrootdRequestHandler;
 import org.dcache.xrootd.core.XrootdSessionIdentifier;
 import org.dcache.xrootd.protocol.messages.CloseRequest;
 import org.dcache.xrootd.protocol.messages.EndSessionRequest;
@@ -74,8 +72,6 @@ import org.dcache.xrootd.protocol.messages.OkResponse;
 import org.dcache.xrootd.protocol.messages.OpenRequest;
 import org.dcache.xrootd.protocol.messages.OpenResponse;
 import org.dcache.xrootd.protocol.messages.PrepareRequest;
-import org.dcache.xrootd.protocol.messages.ProtocolRequest;
-import org.dcache.xrootd.protocol.messages.ProtocolResponse;
 import org.dcache.xrootd.protocol.messages.QueryRequest;
 import org.dcache.xrootd.protocol.messages.QueryResponse;
 import org.dcache.xrootd.protocol.messages.ReadRequest;
