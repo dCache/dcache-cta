@@ -164,9 +164,12 @@ public class DataMover extends AbstractIdleService implements CtaTransportProvid
                 pipeline.addLast("logger", new LoggingHandler(XrootChannelInitializer.class));
             }
 
+            // REVISIT: for now, CTA driver doesn't support any plugins.
+            /*
             for (ChannelHandlerFactory factory : channelHandlerFactories) {
                 pipeline.addLast("plugin:" + factory.getName(), factory.createHandler());
             }
+             */
 
 
             /*
