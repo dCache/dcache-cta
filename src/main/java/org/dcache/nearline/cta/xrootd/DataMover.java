@@ -20,6 +20,7 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.logging.LoggingHandler;
 import java.net.Inet6Address;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.List;
@@ -107,7 +108,8 @@ public class DataMover extends AbstractIdleService implements CtaTransportProvid
                                 .localAddress();
 
                           var addr = sa.getAddress();
-                          var host = addr.getCanonicalHostName();
+                          var host = addr.isAnyLocalAddress() ?
+                                InetAddress.getLocalHost().getCanonicalHostName() : addr.getCanonicalHostName();
                           if (InetAddresses.isInetAddress(host) && addr instanceof Inet6Address) {
                               host = "[" + host  + "]";
                           }

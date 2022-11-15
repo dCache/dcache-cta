@@ -471,16 +471,12 @@ public class CtaNearlineStorage implements NearlineStorage {
 
         // Optional options
         String localEndpoint = properties.get(IO_ENDPOINT);
-        String localPort = properties.getOrDefault(IO_PORT, "0");
-        if (localEndpoint == null) {
-            try {
-                localEndpoint = InetAddress.getLocalHost().getCanonicalHostName();
-            } catch (UnknownHostException e) {
-                throw new IllegalArgumentException("Can't detect local host name", e);
-            }
+        int localPort = Integer.parseInt(properties.getOrDefault(IO_PORT, "0"));
+        if (localEndpoint != null) {
+            ioSocketAddress = new InetSocketAddress(localEndpoint, localPort);
+        } else {
+            ioSocketAddress = new InetSocketAddress(localPort);
         }
-
-        ioSocketAddress = new InetSocketAddress(localEndpoint, Integer.parseInt(localPort));
 
         useTls = Boolean.parseBoolean(properties.getOrDefault(CTA_TLS, "false"));
         if (useTls) {
