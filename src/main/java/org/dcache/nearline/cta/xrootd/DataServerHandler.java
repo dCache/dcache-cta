@@ -377,7 +377,6 @@ public class DataServerHandler extends XrootdProtocolRequestHandler {
                 var query = msg.getArgs();
                 LOGGER.info("XROOD query: {}", query);
 
-                final var idPrefix = "archiveid=";
                 final var errorPrefix = "error=";
 
                 if (!query.startsWith("/error/") && !query.startsWith("/success/")) {
