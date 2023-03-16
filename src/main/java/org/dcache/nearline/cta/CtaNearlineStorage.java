@@ -2,19 +2,33 @@ package org.dcache.nearline.cta;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import ch.cern.cta.rpc.ArchiveResponse;
 import ch.cern.cta.rpc.CreateResponse;
+import ch.cern.cta.rpc.CtaRpcGrpc;
+import ch.cern.cta.rpc.CtaRpcGrpc.CtaRpcStub;
+import ch.cern.cta.rpc.RetrieveResponse;
 import ch.cern.cta.rpc.SchedulerRequest;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Throwables;
 import com.google.common.net.HostAndPort;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.protobuf.Empty;
+import com.netflix.concurrency.limits.Limit;
+import com.netflix.concurrency.limits.Limiter;
+import com.netflix.concurrency.limits.Limiter.Listener;
+import com.netflix.concurrency.limits.limit.AIMDLimit;
+import com.netflix.concurrency.limits.limit.FixedLimit;
+import com.netflix.concurrency.limits.limit.Gradient2Limit;
+import com.netflix.concurrency.limits.limit.VegasLimit;
+import com.netflix.concurrency.limits.limiter.AbstractPartitionedLimiter;
+import com.netflix.concurrency.limits.limiter.BlockingLimiter;
 import cta.admin.CtaAdmin.Version;
 import io.grpc.ChannelCredentials;
 import io.grpc.ConnectivityState;
 import io.grpc.Deadline;
 import io.grpc.InsecureChannelCredentials;
 import io.grpc.ManagedChannel;
+import io.grpc.Status.Code;
 import io.grpc.TlsChannelCredentials;
 import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder;
 import io.grpc.netty.shaded.io.netty.channel.nio.NioEventLoopGroup;
@@ -28,18 +42,15 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
-
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
-import ch.cern.cta.rpc.ArchiveResponse;
-import ch.cern.cta.rpc.CtaRpcGrpc;
-import ch.cern.cta.rpc.CtaRpcGrpc.CtaRpcStub;
-import ch.cern.cta.rpc.RetrieveResponse;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Function;
 import org.dcache.nearline.cta.xrootd.DataMover;
 import org.dcache.pool.nearline.spi.FlushRequest;
+import org.dcache.pool.nearline.spi.NearlineRequest;
 import org.dcache.pool.nearline.spi.NearlineStorage;
 import org.dcache.pool.nearline.spi.RemoveRequest;
 import org.dcache.pool.nearline.spi.StageRequest;
@@ -125,6 +136,24 @@ public class CtaNearlineStorage implements NearlineStorage {
      */
     private boolean useTls;
 
+    // https://en.wikipedia.org/wiki/TCP_Vegas
+    private final Limit limiterPolicy = /*VegasLimit.newBuilder()
+          .initialLimit(Runtime.getRuntime().availableProcessors())
+          .alpha(2)
+          .beta(8)
+          .build();*/
+          AIMDLimit.newBuilder().initialLimit(Runtime.getRuntime().availableProcessors()).build();
+
+    /**
+     * CTA RPC request submission rate limiter.
+     */
+    private final Limiter<NearlineRequest> limiter = new CtaRequestClientLimiterBuilder()
+          .limit(limiterPolicy)
+          .partitionByRequestType()
+          .partition(CtaRequestClientLimiterBuilder.FLUSH_PARTITION, 0.6)
+          .partition(CtaRequestClientLimiterBuilder.STAGE_PARTITION, 0.4)
+          .build();
+
     /**
      * {@link StreamObserver} that the given runnable when complete.
      */
@@ -158,6 +187,7 @@ public class CtaNearlineStorage implements NearlineStorage {
 
         this.type = type;
         this.name = name;
+        limiterPolicy.notifyOnChange(i ->  System.out.println("Current rate limit: " + i));
     }
 
     /**
@@ -168,7 +198,7 @@ public class CtaNearlineStorage implements NearlineStorage {
      * request.
      */
     private Deadline getRequestDeadline() {
-        return Deadline.after(3, TimeUnit.SECONDS);
+        return Deadline.after(30, TimeUnit.SECONDS);
     }
 
     /**
@@ -181,41 +211,46 @@ public class CtaNearlineStorage implements NearlineStorage {
 
         for (FlushRequest fr : requests) {
 
+            var limit = limiter.acquire(fr);
             try {
                 fr.activate().get();
-                final AtomicLong id = new AtomicLong();
-
-                var createRequest = ctaRequestFactory.valueOf(fr.getFileAttributes());
-                cta.withDeadline(getRequestDeadline()).create(createRequest, new StreamObserver<CreateResponse>() {
-                    @Override
-                    public void onNext(CreateResponse createResponse) {
-                        LOGGER.info("{}: Create new archive id {} for {}",
-                              fr.getId(),
-                              createResponse.getArchiveFileId(),
-                              fr.getFileAttributes().getPnfsId()
-                        );
-                        id.set(createResponse.getArchiveFileId());
-                    }
-
-                    @Override
-                    public void onError(Throwable t) {
-                        LOGGER.error("Failed to submit create request {}", t.getMessage());
-                        Exception e =
-                              t instanceof Exception ? Exception.class.cast(t) : new Exception(t);
-                        fr.failed(e);
-                    }
-
-                    @Override
-                    public void onCompleted() {
-                        submitFlush(fr, id.get());
-                    }
-                });
-
             } catch (ExecutionException | InterruptedException e) {
                 Throwable t = Throwables.getRootCause(e);
                 LOGGER.error("Failed to activate flush request: {}", t.getMessage());
                 fr.failed(e);
+                limit.get().onIgnore();
             }
+
+            final AtomicLong id = new AtomicLong();
+
+            var createRequest = ctaRequestFactory.valueOf(fr.getFileAttributes());
+            cta.withDeadline(getRequestDeadline())
+                  .create(createRequest, new StreamObserver<CreateResponse>() {
+                      @Override
+                      public void onNext(CreateResponse createResponse) {
+                          LOGGER.info("{}: Create new archive id {} for {}",
+                                fr.getId(),
+                                createResponse.getArchiveFileId(),
+                                fr.getFileAttributes().getPnfsId()
+                          );
+                          id.set(createResponse.getArchiveFileId());
+                      }
+
+                      @Override
+                      public void onError(Throwable t) {
+                          LOGGER.error("Failed to submit create request {}", t.getMessage());
+                          Exception e =
+                                t instanceof Exception ? Exception.class.cast(t)
+                                      : new Exception(t);
+                          fr.failed(e);
+                          reduceRateIfNeeded(t, limit.get());
+                      }
+
+                      @Override
+                      public void onCompleted() {
+                          submitFlush(fr, id.get(), limit.get());
+                      }
+                  });
         }
 
     }
@@ -226,7 +261,7 @@ public class CtaNearlineStorage implements NearlineStorage {
      * @param fr
      * @param ctaArchiveId
      */
-    public void submitFlush(FlushRequest fr, long ctaArchiveId) {
+    public void submitFlush(FlushRequest fr, long ctaArchiveId, Listener limitListener) {
 
         var id = fr.getFileAttributes().getPnfsId().toString();
 
@@ -287,10 +322,12 @@ public class CtaNearlineStorage implements NearlineStorage {
                 Exception e =
                       t instanceof Exception ? Exception.class.cast(t) : new Exception(t);
                 r.failed(e);
+                reduceRateIfNeeded(t, limitListener);
             }
 
             @Override
             public void onCompleted() {
+                limitListener.onSuccess();
             }
         });
     }
@@ -304,6 +341,7 @@ public class CtaNearlineStorage implements NearlineStorage {
     public void stage(Iterable<StageRequest> requests) {
         for (var sr : requests) {
 
+            var limit = limiter.acquire(sr);
             var id = sr.getFileAttributes().getPnfsId().toString();
             var r = new ForwardingStageRequest() {
                 @Override
@@ -338,6 +376,7 @@ public class CtaNearlineStorage implements NearlineStorage {
                 LOGGER.error("Failed to activate/allocate space for retrieve request: {}",
                       t.getMessage());
                 r.failed(e);
+                limit.get().onIgnore();
                 continue;
             }
 
@@ -359,7 +398,8 @@ public class CtaNearlineStorage implements NearlineStorage {
                               public void cancel() {
                                   // on cancel send the request to CTA; on success cancel the requests
                                   Runnable r = super::cancel;
-                                  cta.withDeadline(getRequestDeadline()).cancelRetrieve(cancelRequest, new OnSuccessStreamObserver(r));
+                                  cta.withDeadline(getRequestDeadline())
+                                        .cancelRetrieve(cancelRequest, new OnSuccessStreamObserver(r));
                               }
                           }
                     );
@@ -371,10 +411,12 @@ public class CtaNearlineStorage implements NearlineStorage {
                     Exception e =
                           t instanceof Exception ? Exception.class.cast(t) : new Exception(t);
                     r.failed(e);
+                    reduceRateIfNeeded(t, limit.get());
                 }
 
                 @Override
                 public void onCompleted() {
+                    limit.get().onSuccess();
                 }
             });
         }
@@ -389,6 +431,7 @@ public class CtaNearlineStorage implements NearlineStorage {
     public void remove(Iterable<RemoveRequest> requests) {
 
         for (var r : requests) {
+            var limit = limiter.acquire(r);
             var deleteRequest = ctaRequestFactory.valueOf(r);
             cta.withDeadline(getRequestDeadline()).delete(deleteRequest, new StreamObserver<>() {
                 @Override
@@ -406,11 +449,12 @@ public class CtaNearlineStorage implements NearlineStorage {
                     Exception e =
                           t instanceof Exception ? Exception.class.cast(t) : new Exception(t);
                     r.failed(e);
+                    reduceRateIfNeeded(t, limit.get());
                 }
 
                 @Override
                 public void onCompleted() {
-
+                    limit.get().onSuccess();
                 }
             });
         }
@@ -564,4 +608,58 @@ public class CtaNearlineStorage implements NearlineStorage {
     PendingRequest getRequest(String id) {
         return pendingRequests.get(id);
     }
+
+    private void reduceRateIfNeeded(Throwable t, Listener limitListener) {
+        if (!(t instanceof io.grpc.StatusRuntimeException)) {
+            limitListener.onIgnore();
+        }
+
+        var ge = (io.grpc.StatusRuntimeException) t;
+        var errorCode = ge.getStatus().getCode();
+        if (errorCode != Code.RESOURCE_EXHAUSTED || errorCode != Code.DEADLINE_EXCEEDED) {
+            limitListener.onIgnore();
+        } else {
+            LOGGER.error("dropping due {} to : {} rps", errorCode, limiterPolicy.getLimit());
+            limitListener.onDropped();
+        }
+    }
+
+    private static class CtaRequestClientLimiterBuilder extends
+          AbstractPartitionedLimiter.Builder<CtaRequestClientLimiterBuilder, NearlineRequest> {
+
+        private static final String STAGE_PARTITION = "stage";
+        private static final String FLUSH_PARTITION = "flush";
+        private static final String REMOVE_PARTITION = "remove";
+
+        private static final String UNDEFIED_PARTITION = "default";
+
+        @Override
+        protected CtaRequestClientLimiterBuilder self() {
+            return this;
+        }
+
+
+        public CtaRequestClientLimiterBuilder partitionByRequestType() {
+
+            Function<NearlineRequest, String> partitionFunction = r -> {
+                if (r instanceof FlushRequest) {
+                    return FLUSH_PARTITION;
+                } else if (r instanceof StageRequest) {
+                    return STAGE_PARTITION;
+                } else if (r instanceof RemoveRequest) {
+                    return REMOVE_PARTITION;
+                } else {
+                    return UNDEFIED_PARTITION;
+                }
+            };
+
+            return partitionResolver(partitionFunction);
+        }
+
+        @Override
+        public Limiter<NearlineRequest> build() {
+            return BlockingLimiter.wrap(super.build());
+        }
+    }
+
 }
