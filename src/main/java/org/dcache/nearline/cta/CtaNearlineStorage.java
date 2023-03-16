@@ -520,7 +520,7 @@ public class CtaNearlineStorage implements NearlineStorage {
               cta.version(Empty.newBuilder().build(), new StreamObserver<>() {
                   @Override
                   public void onNext(Version version) {
-                      LOGGER.info("Connected to CTA version {}", version.getCtaVersion();
+                      LOGGER.info("Connected to CTA version {}", version.getCtaVersion());
                   }
 
                   @Override
