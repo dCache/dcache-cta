@@ -60,6 +60,7 @@ public class CtaNearlineStorage implements NearlineStorage {
     public static final String CTA_CA = "cta-ca-chain";
     public static final String IO_ENDPOINT = "io-endpoint";
     public static final String IO_PORT = "io-port";
+    public static final String CTA_REQUEST_TIMEOUT = "cta-frontend-timeout";
 
     protected final String type;
     protected final String name;
@@ -126,6 +127,11 @@ public class CtaNearlineStorage implements NearlineStorage {
     private boolean useTls;
 
     /**
+     * CTA frontend request timeout.
+     */
+    private int ctaRequestTimeoutInSec = 30;
+
+    /**
      * {@link StreamObserver} that the given runnable when complete.
      */
     private static class OnSuccessStreamObserver implements StreamObserver<Empty> {
@@ -168,7 +174,7 @@ public class CtaNearlineStorage implements NearlineStorage {
      * request.
      */
     private Deadline getRequestDeadline() {
-        return Deadline.after(30, TimeUnit.SECONDS);
+        return Deadline.after(ctaRequestTimeoutInSec, TimeUnit.SECONDS);
     }
 
     /**
@@ -454,6 +460,7 @@ public class CtaNearlineStorage implements NearlineStorage {
         String endpoint = properties.get(CTA_ENDPOINT);
         String user = properties.get(CTA_USER);
         String group = properties.get(CTA_GROUP);
+        String timeoutString = properties.get(CTA_REQUEST_TIMEOUT);
 
         checkArgument(instance != null, "dCache instance name is not set.");
         checkArgument(endpoint != null, "CTA frontend is not set.");
@@ -482,6 +489,10 @@ public class CtaNearlineStorage implements NearlineStorage {
             if (caPath != null) {
                 caRootChain = new File(caPath);
             }
+        }
+
+        if (timeoutString != null) {
+            ctaRequestTimeoutInSec = Integer.parseInt(timeoutString);
         }
     }
 

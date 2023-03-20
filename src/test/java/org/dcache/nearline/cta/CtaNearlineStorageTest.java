@@ -7,6 +7,7 @@ import static org.dcache.nearline.cta.CtaNearlineStorage.CTA_CA;
 import static org.dcache.nearline.cta.CtaNearlineStorage.CTA_ENDPOINT;
 import static org.dcache.nearline.cta.CtaNearlineStorage.CTA_GROUP;
 import static org.dcache.nearline.cta.CtaNearlineStorage.CTA_INSTANCE;
+import static org.dcache.nearline.cta.CtaNearlineStorage.CTA_REQUEST_TIMEOUT;
 import static org.dcache.nearline.cta.CtaNearlineStorage.CTA_TLS;
 import static org.dcache.nearline.cta.CtaNearlineStorage.CTA_USER;
 import static org.dcache.nearline.cta.CtaNearlineStorage.IO_PORT;
@@ -97,7 +98,8 @@ public class CtaNearlineStorageTest {
                     CTA_ENDPOINT, cta.getConnectString(),
                     IO_PORT, "9991",
                     CTA_TLS, "true",
-                    CTA_CA, certFile.getAbsolutePath()
+                    CTA_CA, certFile.getAbsolutePath(),
+                    CTA_REQUEST_TIMEOUT, "3"
               )
         );
     }
@@ -167,6 +169,13 @@ public class CtaNearlineStorageTest {
         driver = new CtaNearlineStorage("aType", "aName");
 
         drvConfig.put(CTA_ENDPOINT, "localhost");
+        driver.configure(drvConfig);
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testInvalidTimeoutValue() {
+        driver = new CtaNearlineStorage("aType", "aName");
+        drvConfig.put(CTA_REQUEST_TIMEOUT, "foo");
         driver.configure(drvConfig);
     }
 
