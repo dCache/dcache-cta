@@ -161,14 +161,14 @@ public class CtaNearlineStorage implements NearlineStorage {
     }
 
     /**
-     * How long we should expect CTA frontend to respond. We expect instant response, thus let as be
-     * a nice person :).
+     * How long we should expect CTA frontend to respond.
+     *
      * <p>
      * NOTE: as deadline is a point in time (not a timeout per request), we have to set it for each
      * request.
      */
     private Deadline getRequestDeadline() {
-        return Deadline.after(3, TimeUnit.SECONDS);
+        return Deadline.after(30, TimeUnit.SECONDS);
     }
 
     /**
