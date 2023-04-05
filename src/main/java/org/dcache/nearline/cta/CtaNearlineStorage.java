@@ -10,6 +10,7 @@ import com.google.common.net.HostAndPort;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.protobuf.Empty;
 import cta.admin.CtaAdmin.Version;
+import diskCacheV111.util.CacheException;
 import io.grpc.ChannelCredentials;
 import io.grpc.ConnectivityState;
 import io.grpc.Deadline;
@@ -206,9 +207,7 @@ public class CtaNearlineStorage implements NearlineStorage {
                     @Override
                     public void onError(Throwable t) {
                         LOGGER.error("Failed to submit create request {}", t.getMessage());
-                        Exception e =
-                              t instanceof Exception ? Exception.class.cast(t) : new Exception(t);
-                        fr.failed(e);
+                        fr.failed(asCacheException(t));
                     }
 
                     @Override
@@ -220,7 +219,7 @@ public class CtaNearlineStorage implements NearlineStorage {
             } catch (ExecutionException | InterruptedException e) {
                 Throwable t = Throwables.getRootCause(e);
                 LOGGER.error("Failed to activate flush request: {}", t.getMessage());
-                fr.failed(e);
+                fr.failed(asCacheException(t));
             }
         }
 
@@ -290,9 +289,7 @@ public class CtaNearlineStorage implements NearlineStorage {
             @Override
             public void onError(Throwable t) {
                 LOGGER.error("Failed to submit archive request {}", t.getMessage());
-                Exception e =
-                      t instanceof Exception ? Exception.class.cast(t) : new Exception(t);
-                r.failed(e);
+                r.failed(asCacheException(t));
             }
 
             @Override
@@ -343,7 +340,7 @@ public class CtaNearlineStorage implements NearlineStorage {
                 Throwable t = Throwables.getRootCause(e);
                 LOGGER.error("Failed to activate/allocate space for retrieve request: {}",
                       t.getMessage());
-                r.failed(e);
+                r.failed(asCacheException(t));
                 continue;
             }
 
@@ -374,9 +371,7 @@ public class CtaNearlineStorage implements NearlineStorage {
                 @Override
                 public void onError(Throwable t) {
                     LOGGER.error("Failed to submit stage request {}", t.getMessage());
-                    Exception e =
-                          t instanceof Exception ? Exception.class.cast(t) : new Exception(t);
-                    r.failed(e);
+                    r.failed(asCacheException(t));
                 }
 
                 @Override
@@ -409,9 +404,7 @@ public class CtaNearlineStorage implements NearlineStorage {
                 @Override
                 public void onError(Throwable t) {
                     LOGGER.error("Failed to submit stage request {}", t.getMessage());
-                    Exception e =
-                          t instanceof Exception ? Exception.class.cast(t) : new Exception(t);
-                    r.failed(e);
+                    r.failed(asCacheException(t));
                 }
 
                 @Override
@@ -574,5 +567,20 @@ public class CtaNearlineStorage implements NearlineStorage {
     @VisibleForTesting
     PendingRequest getRequest(String id) {
         return pendingRequests.get(id);
+    }
+
+
+    /**
+     * Convert a given Throwable into CacheException to ensure serialization.
+     * @param e origianl exception.
+     * @return corresponding cache exception
+     */
+    private CacheException asCacheException(Throwable e) {
+
+        if (e.getClass().isAssignableFrom(CacheException.class)) {
+            return CacheException.class.cast(e);
+        }
+
+        return new CacheException(CacheException.UNEXPECTED_SYSTEM_EXCEPTION, e.toString());
     }
 }

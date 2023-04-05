@@ -22,6 +22,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.google.common.util.concurrent.Futures;
+import diskCacheV111.util.CacheException;
 import diskCacheV111.vehicles.GenericStorageInfo;
 import eu.emi.security.authn.x509.impl.CertificateUtils;
 import eu.emi.security.authn.x509.impl.CertificateUtils.Encoding;
@@ -199,7 +200,7 @@ public class CtaNearlineStorageTest {
         var request = mockedFlushRequest();
         driver.flush(Set.of(request));
         waitToComplete();
-        verify(request).failed(any(io.grpc.StatusRuntimeException.class));
+        verify(request).failed(any(CacheException.class));
     }
 
     @Test
@@ -637,7 +638,7 @@ public class CtaNearlineStorageTest {
         driver.stage(Set.of(request));
 
         cta.waitToReply(4);
-        verify(request, times(1)).failed(any(io.grpc.StatusRuntimeException.class));
+        verify(request, times(1)).failed(any(CacheException.class));
     }
 
 
@@ -653,7 +654,7 @@ public class CtaNearlineStorageTest {
         driver.flush(Set.of(request));
 
         cta.waitToReply(4);
-        verify(request, times(1)).failed(any(io.grpc.StatusRuntimeException.class));
+        verify(request, times(1)).failed(any(CacheException.class));
     }
 
     @Test
@@ -668,7 +669,7 @@ public class CtaNearlineStorageTest {
         driver.remove(Set.of(request));
 
         cta.waitToReply(4);
-        verify(request, times(1)).failed(any(io.grpc.StatusRuntimeException.class));
+        verify(request, times(1)).failed(any(CacheException.class));
     }
 
     void waitToComplete() {
