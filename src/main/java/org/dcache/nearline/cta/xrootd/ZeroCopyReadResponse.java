@@ -24,6 +24,7 @@ import io.netty.channel.DefaultFileRegion;
 
 import java.io.IOException;
 import java.nio.channels.FileChannel;
+import org.dcache.nearline.cta.xrootd.IoStats.IoRequest;
 import org.dcache.xrootd.protocol.messages.ReadRequest;
 import org.dcache.xrootd.protocol.messages.XrootdResponse;
 
@@ -36,10 +37,13 @@ public class ZeroCopyReadResponse implements XrootdResponse<ReadRequest> {
     private final FileChannel file;
     private final int count;
 
-    public ZeroCopyReadResponse(ReadRequest request, FileChannel file) throws IOException {
+    private final IoRequest ioRequest;
+
+    public ZeroCopyReadResponse(ReadRequest request, FileChannel file, IoStats.IoRequest ioStat) throws IOException {
         this.request = checkNotNull(request);
         this.file = checkNotNull(file);
         this.count = (int) Math.min(request.bytesToRead(), file.size() - request.getReadOffset());
+        this.ioRequest = ioStat;
     }
 
     @Override
@@ -73,6 +77,7 @@ public class ZeroCopyReadResponse implements XrootdResponse<ReadRequest> {
               (ChannelFutureListener) future -> {
                   if (future.isSuccess()) {
                       promise.trySuccess();
+                      ioRequest.done(count);
                   } else {
                       promise.tryFailure(future.cause());
                   }

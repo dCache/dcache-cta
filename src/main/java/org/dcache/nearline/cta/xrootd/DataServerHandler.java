@@ -111,6 +111,8 @@ public class DataServerHandler extends XrootdProtocolRequestHandler {
          */
         private final Instant btime = Instant.now();
 
+        private final IoStats ioStat = new IoStats();
+
         public MigrationRequest(NearlineRequest request, FileChannel fileChannel) {
             this.request = request;
             this.fileChannel = fileChannel;
@@ -272,13 +274,15 @@ public class DataServerHandler extends XrootdProtocolRequestHandler {
     @Override
     protected Object doOnRead(ChannelHandlerContext ctx, ReadRequest msg)
           throws XrootdException {
-        FileChannel fileChannel = getOpenFile(msg.getFileHandle()).fileChannel();
+        var request = getOpenFile(msg.getFileHandle());
+        FileChannel fileChannel = request.fileChannel();
         if (msg.bytesToRead() == 0) {
             return withOk(msg);
         }
 
         try {
-            return new ZeroCopyReadResponse(msg, fileChannel);
+            var ioStat = request.ioStat.newRequest();
+            return new ZeroCopyReadResponse(msg, fileChannel, ioStat);
         } catch (IOException e) {
             throw new XrootdException(kXR_IOError, e.getMessage());
         }
@@ -295,9 +299,12 @@ public class DataServerHandler extends XrootdProtocolRequestHandler {
     protected OkResponse<WriteRequest> doOnWrite(ChannelHandlerContext ctx, WriteRequest msg)
           throws XrootdException {
         try {
-            FileChannel fileChannel = getOpenFile(msg.getFileHandle()).fileChannel();
+            var request = getOpenFile(msg.getFileHandle());
+            FileChannel fileChannel = request.fileChannel();
             fileChannel.position(msg.getWriteOffset());
+            var ioRequest = request.ioStat.newRequest();
             msg.getData(fileChannel);
+            ioRequest.done(msg.getDataLength());
             return withOk(msg);
         } catch (IOException e) {
             throw new XrootdException(kXR_IOError, e.getMessage());
@@ -340,12 +347,11 @@ public class DataServerHandler extends XrootdProtocolRequestHandler {
             long size = file.length();
             long duration = Duration.between(migrationRequest.getCreationTime(), Instant.now())
                   .toMillis();
-            double bandwidth = (double) size / duration;
 
-            LOGGER.info("Closing file {}. Transferred {} in {}, {}", file,
+            LOGGER.info("Closing file {}. Transferred {} in {}, disk performance {}", file,
                   Strings.humanReadableSize(size),
                   TimeUtils.describeDuration(duration, TimeUnit.MILLISECONDS),
-                  Strings.describeBandwidth(bandwidth * 1000)
+                  Strings.describeBandwidth(migrationRequest.ioStat.getMean())
             );
 
             if (r instanceof StageRequest) {
