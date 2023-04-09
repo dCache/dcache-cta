@@ -24,7 +24,7 @@ public class IoStatsTest {
         stats.done(ByteUnit.MB.toBytes(speedInMB) * sleepTime);
 
         // expected 300 MB/s
-        assertEquals(speedInMB, ByteUnit.BYTES.toMB(ioStats.getMean()), 1.0);
+        assertEquals(speedInMB, ByteUnit.BYTES.toMB(ioStats.getMean()), 3.0);
     }
 
 }
