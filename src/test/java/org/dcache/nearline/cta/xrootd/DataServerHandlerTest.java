@@ -14,11 +14,12 @@ import static org.mockito.Mockito.when;
 
 import com.google.common.util.concurrent.Futures;
 import diskCacheV111.vehicles.GenericStorageInfo;
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import java.io.File;
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.net.URI;
-import java.time.Instant;
 import java.util.Base64;
 import java.util.Set;
 import java.util.UUID;
@@ -51,7 +52,11 @@ public class DataServerHandlerTest {
 
     @Before
     public void setUp() throws Exception {
+        var cannel = mock(Channel.class);
+        when(cannel.remoteAddress()).thenReturn(new InetSocketAddress("5.5.5.5", 4321));
         ctx = mock(ChannelHandlerContext.class);
+        when(ctx.channel()).thenReturn(cannel);
+
         requests = new ConcurrentHashMap<>();
         handler = new DataServerHandler("cta", "test", requests);
     }

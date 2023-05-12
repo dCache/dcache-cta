@@ -28,12 +28,14 @@ import static org.dcache.xrootd.protocol.XrootdProtocol.kXR_readable;
 import static org.dcache.xrootd.protocol.XrootdProtocol.kXR_writable;
 import static org.dcache.xrootd.protocol.XrootdProtocol.kXR_xset;
 
+import com.google.common.net.InetAddresses;
 import diskCacheV111.util.Adler32;
 import diskCacheV111.util.CacheException;
 import io.netty.channel.ChannelHandlerContext;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.net.URI;
 import java.nio.ByteBuffer;
 import java.nio.channels.ClosedChannelException;
@@ -128,6 +130,19 @@ public class DataServerHandler extends XrootdProtocolRequestHandler {
 
         public Instant getCreationTime() {
             return btime;
+        }
+    }
+
+    private static class RemoteAddressHolder {
+        private final InetSocketAddress remote;
+
+        public RemoteAddressHolder(ChannelHandlerContext ctx) {
+            this.remote = (InetSocketAddress) ctx.channel().remoteAddress();
+        }
+
+        @Override
+        public String toString() {
+            return InetAddresses.toUriString(remote.getAddress()) + ":" + remote.getPort();
         }
     }
 
@@ -227,7 +242,7 @@ public class DataServerHandler extends XrootdProtocolRequestHandler {
                     throw new XrootdException(kXR_ArgInvalid,
                           "An attempt to open-for-read for stage requests");
                 }
-                LOGGER.info("Opening {} for writing", file);
+                LOGGER.info("Opening {} for writing from {}", file, new RemoteAddressHolder(ctx));
                 openOptions.add(StandardOpenOption.CREATE);
                 openOptions.add(StandardOpenOption.WRITE);
                 if (msg.isDelete()) {
@@ -238,7 +253,7 @@ public class DataServerHandler extends XrootdProtocolRequestHandler {
                     throw new XrootdException(kXR_ArgInvalid,
                           "An attempt to open-for-write for flush requests");
                 }
-                LOGGER.info("Opening {} for reading.", file);
+                LOGGER.info("Opening {} for reading from {}.", file, new RemoteAddressHolder(ctx));
                 openOptions.add(StandardOpenOption.READ);
             }
 
@@ -348,7 +363,8 @@ public class DataServerHandler extends XrootdProtocolRequestHandler {
             long duration = Duration.between(migrationRequest.getCreationTime(), Instant.now())
                   .toMillis();
 
-            LOGGER.info("Closing file {}. Transferred {} in {}, disk performance {}", file,
+            LOGGER.info("Closing file {} from {}. Transferred {} in {}, disk performance {}", file,
+                  new RemoteAddressHolder(ctx),
                   Strings.humanReadableSize(size),
                   TimeUtils.describeDuration(duration, TimeUnit.MILLISECONDS),
                   Strings.describeBandwidth(migrationRequest.ioStat.getMean())
@@ -381,7 +397,7 @@ public class DataServerHandler extends XrootdProtocolRequestHandler {
 
             case kXR_Qopaquf:
                 var query = msg.getArgs();
-                LOGGER.info("XROOD query: {}", query);
+                LOGGER.info("XROOD query: {} from {}", query, new RemoteAddressHolder(ctx));
 
                 final var errorPrefix = "error=";
 
@@ -406,7 +422,7 @@ public class DataServerHandler extends XrootdProtocolRequestHandler {
                     var error = new String(
                           Base64.getDecoder().decode(uriQuery.substring(errorPrefix.length())),
                           StandardCharsets.UTF_8);
-                    LOGGER.error("Error report on flushing: {} : {}", requestId, error);
+                    LOGGER.error("Error report on flushing: {} from {} : {}", requestId, new RemoteAddressHolder(ctx), error);
                     r.failed(CacheException.SERVICE_UNAVAILABLE, error);
                 } else if (query.startsWith("/success/")) {
 
@@ -420,13 +436,13 @@ public class DataServerHandler extends XrootdProtocolRequestHandler {
                           hsmType + "://" + hsmName + "/" + id + "?archiveid=" + archiveId);
                     r.completed(Set.of(hsmUrl));
 
-                    LOGGER.info("Successful flushing: {} : archive id: {}", requestId, archiveId);
+                    LOGGER.info("Successful flushing from {} : {} : archive id: {}", new RemoteAddressHolder(ctx), requestId, archiveId);
                 }
 
                 return new QueryResponse(msg, "");
 
             default:
-                LOGGER.error("Unsupported query code: {}", msg.getReqcode());
+                LOGGER.error("Unsupported query code from {} : {}", new RemoteAddressHolder(ctx), msg.getReqcode());
                 throw new XrootdException(kXR_Unsupported,
                       "Unsupported kXR_query reqcode: " + msg.getReqcode());
         }
