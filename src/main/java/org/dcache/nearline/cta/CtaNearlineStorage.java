@@ -39,12 +39,15 @@ import ch.cern.cta.rpc.CtaRpcGrpc.CtaRpcStub;
 import ch.cern.cta.rpc.RetrieveResponse;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import org.dcache.namespace.FileAttribute;
 import org.dcache.nearline.cta.xrootd.DataMover;
 import org.dcache.pool.nearline.spi.FlushRequest;
 import org.dcache.pool.nearline.spi.NearlineStorage;
 import org.dcache.pool.nearline.spi.RemoveRequest;
 import org.dcache.pool.nearline.spi.StageRequest;
 import org.dcache.util.Checksum;
+import org.dcache.util.ChecksumType;
+import org.dcache.vehicles.FileAttributes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -190,6 +193,23 @@ public class CtaNearlineStorage implements NearlineStorage {
 
             try {
                 fr.activate().get();
+
+                // don't flush zero-byte files
+                if (fr.getFileAttributes().getSize() == 0) {
+                    LOGGER.info("Fake flush of zero-byte file {}", fr.getFileAttributes().getPnfsId());
+                    fr.completed(Set.of(createZeroFileUri(fr.getFileAttributes())));
+                    continue;
+                }
+
+                // CTA can't flush files without checksum, thus, even don't try
+                if (!fr.getFileAttributes().isDefined(FileAttribute.CHECKSUM) ||
+                        fr.getFileAttributes().getChecksums().isEmpty()) {
+                    LOGGER.warn("Can't flush file {} - no checksum", fr.getFileAttributes().getPnfsId());
+                    fr.failed(CacheException.NO_ATTRIBUTE, "Can't flush files without checksum");
+                    continue;
+                }
+
+
                 final AtomicLong id = new AtomicLong();
 
                 var createRequest = ctaRequestFactory.valueOf(fr.getFileAttributes());
@@ -336,7 +356,15 @@ public class CtaNearlineStorage implements NearlineStorage {
             try {
                 r.activate().get();
                 r.allocate().get();
-            } catch (ExecutionException | InterruptedException e) {
+
+                // no need to stage an empty files
+                if (sr.getFileAttributes().getSize() == 0) {
+                    new File(sr.getReplicaUri().getPath()).createNewFile();
+                    sr.completed(Set.of(new Checksum(ChecksumType.ADLER32.createMessageDigest())));
+                    continue;
+                }
+
+            } catch (IOException | ExecutionException | InterruptedException e) {
                 Throwable t = Throwables.getRootCause(e);
                 LOGGER.error("Failed to activate/allocate space for retrieve request: {}",
                       t.getMessage());
@@ -582,5 +610,9 @@ public class CtaNearlineStorage implements NearlineStorage {
         }
 
         return new CacheException(CacheException.UNEXPECTED_SYSTEM_EXCEPTION, e.toString());
+    }
+
+    private URI createZeroFileUri(FileAttributes attrs) {
+        return URI.create(type + "://" + name + "/" + attrs.getPnfsId() + "?archiveid=*");
     }
 }

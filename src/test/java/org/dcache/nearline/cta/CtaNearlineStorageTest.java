@@ -34,9 +34,12 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import org.dcache.namespace.FileAttribute;
 import org.dcache.pool.nearline.spi.FlushRequest;
 import org.dcache.pool.nearline.spi.RemoveRequest;
 import org.dcache.pool.nearline.spi.StageRequest;
+import org.dcache.util.Checksum;
+import org.dcache.util.ChecksumType;
 import org.dcache.vehicles.FileAttributes;
 import org.junit.After;
 import org.junit.Before;
@@ -308,6 +311,36 @@ public class CtaNearlineStorageTest {
         waitToComplete();
 
         verify(request).failed(any());
+    }
+
+    @Test
+    public void testFlushOfEmptyFile() {
+
+        var request = mockedFlushRequest();
+        request.getFileAttributes().setSize(0L);
+
+        driver = new CtaNearlineStorage("foo", "bar");
+        driver.configure(drvConfig);
+        driver.start();
+
+        driver.flush(Set.of(request));
+        // TODO: check for correct URI
+        verify(request).completed(any());
+    }
+
+
+    @Test
+    public void testFlushWithoutChecksum() {
+
+        var request = mockedFlushRequest();
+        request.getFileAttributes().undefine(FileAttribute.CHECKSUM);
+
+        driver = new CtaNearlineStorage("foo", "bar");
+        driver.configure(drvConfig);
+        driver.start();
+
+        driver.flush(Set.of(request));
+        verify(request).failed(anyInt(), any());
     }
 
     @Test
@@ -662,6 +695,7 @@ public class CtaNearlineStorageTest {
               .hsm("z")
               .creationTime(System.currentTimeMillis())
               .pnfsId("0000C9B4E3768770452E8B1B8E0232584872")
+              .checksum(new Checksum(ChecksumType.ADLER32.createMessageDigest()))
               .build();
 
         var request = mock(FlushRequest.class);
