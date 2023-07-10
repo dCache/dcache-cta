@@ -4,6 +4,8 @@
 
 This is nearline storage plugin for dCache.
 
+[![DOI](https://zenodo.org/badge/415029713.svg)](https://zenodo.org/badge/latestdoi/415029713)
+
 To compile the plugin, run:
 
     mvn package
