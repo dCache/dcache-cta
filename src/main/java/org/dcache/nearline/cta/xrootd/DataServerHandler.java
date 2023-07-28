@@ -397,7 +397,7 @@ public class DataServerHandler extends XrootdProtocolRequestHandler {
 
             case kXR_Qopaquf:
                 var query = msg.getArgs();
-                LOGGER.info("XROOD query: {} from {}", query, new RemoteAddressHolder(ctx));
+                LOGGER.info("XROOTD query: {} from {}", query, new RemoteAddressHolder(ctx));
 
                 final var errorPrefix = "error=";
 
