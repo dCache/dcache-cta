@@ -108,8 +108,7 @@ public class DataMover extends AbstractIdleService implements CtaTransportProvid
                                 .localAddress();
 
                           var addr = sa.getAddress();
-                          var host = addr.isAnyLocalAddress() ?
-                                InetAddress.getLocalHost().getCanonicalHostName() : addr.getCanonicalHostName();
+                          var host = addr.getHostAddress();
                           if (InetAddresses.isInetAddress(host) && addr instanceof Inet6Address) {
                               host = "[" + host  + "]";
                           }
