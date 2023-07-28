@@ -72,7 +72,7 @@ public class CtaNearlineStorageTest {
 
 
     @Test
-    public void testCfgAcceptValid() throws InterruptedException, IOException {
+    public void testCfgAcceptValid() throws InterruptedException, IOException, ExecutionException {
 
         driver = new CtaNearlineStorage("aType", "aName");
         driver.configure(drvConfig);
@@ -82,7 +82,7 @@ public class CtaNearlineStorageTest {
         var r = mockedStageRequest("0000E896BF4CD65C45B6AAC571FB1DCE6526", 3714246, 31677440L);
 
         driver.stage(Set.of(r));
-        TimeUnit.SECONDS.sleep(900);
+        waitForComplete.get();
     }
 
     void waitToComplete() {
