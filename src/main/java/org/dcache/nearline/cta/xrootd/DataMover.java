@@ -77,7 +77,7 @@ public class DataMover extends AbstractIdleService implements CtaTransportProvid
 
         try {
             this.pendingRequests = pendingRequests;
-            bossGroup = new NioEventLoopGroup(0, new ThreadFactoryBuilder().setNameFormat("cta-datamover-accept-%d").build());
+            bossGroup = new NioEventLoopGroup(1, new ThreadFactoryBuilder().setNameFormat("cta-datamover-accept-%d").build());
             workerGroup = new NioEventLoopGroup(0, new ThreadFactoryBuilder().setNameFormat("cta-datamover-worker-%d").build());
 
             server = new ServerBootstrap()
