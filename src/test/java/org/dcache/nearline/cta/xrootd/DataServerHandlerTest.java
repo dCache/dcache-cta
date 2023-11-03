@@ -9,6 +9,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -58,7 +59,7 @@ public class DataServerHandlerTest {
         when(ctx.channel()).thenReturn(cannel);
 
         requests = new ConcurrentHashMap<>();
-        handler = new DataServerHandler("cta", "test", requests);
+        handler = new DataServerHandler("cta", "test", true, requests);
     }
 
     @Test(expected = XrootdException.class)
@@ -220,6 +221,84 @@ public class DataServerHandlerTest {
         handler.doOnClose(ctx, closeMgs);
         waitToComplete();
 
+        verify(stageRequest).completed(any());
+    }
+
+    @Test
+    public void testCloseAfterStageNoReport() throws XrootdException, IOException, InterruptedException {
+
+        handler.setSuccessOnClose(false);
+        var stageRequest = mockedStageRequest();
+
+        var buf = new ByteBufBuilder()
+                .withShort(1)    // stream id
+                .withShort(XrootdProtocol.kXR_open)
+                .withShort(0)
+                .withShort(XrootdProtocol.kXR_delete | XrootdProtocol.kXR_new)
+                .withZeros(12) // padding
+                .withString("0000C9B4E3768770452E8B1B8E0232584872", UTF_8)
+                .build();
+
+        var openMsg = new OpenRequest(buf);
+
+        var openResponse = handler.doOnOpen(ctx, openMsg);
+
+        buf = new ByteBufBuilder()
+                .withShort(1)    // stream id
+                .withShort(XrootdProtocol.kXR_close)
+                .withInt(openResponse.getFileHandle()) // fh
+                .build();
+
+        var closeMgs = new CloseRequest(buf);
+
+        handler.doOnClose(ctx, closeMgs);
+        verify(stageRequest, never()).completed(any());
+    }
+
+    @Test
+    public void testCloseAfterStageReport() throws XrootdException, IOException, InterruptedException {
+
+        handler.setSuccessOnClose(false);
+        var stageRequest = mockedStageRequest();
+
+        var buf = new ByteBufBuilder()
+                .withShort(1)    // stream id
+                .withShort(XrootdProtocol.kXR_open)
+                .withShort(0)
+                .withShort(XrootdProtocol.kXR_delete | XrootdProtocol.kXR_new)
+                .withZeros(12) // padding
+                .withString("0000C9B4E3768770452E8B1B8E0232584872", UTF_8)
+                .build();
+
+        var openMsg = new OpenRequest(buf);
+
+        var openResponse = handler.doOnOpen(ctx, openMsg);
+
+        buf = new ByteBufBuilder()
+                .withShort(1)    // stream id
+                .withShort(XrootdProtocol.kXR_close)
+                .withInt(openResponse.getFileHandle()) // fh
+                .build();
+
+        var closeMgs = new CloseRequest(buf);
+        handler.doOnClose(ctx, closeMgs);
+
+        var success = "/success/0000C9B4E3768770452E8B1B8E0232584872?archiveid=31415926";
+
+         buf = new ByteBufBuilder()
+                .withShort(1)    // stream id
+                .withShort(XrootdProtocol.kXR_query)
+                .withShort(XrootdProtocol.kXR_Qopaquf)
+                .withInt(-1) // fh, not used
+                .withInt(success.length())
+                .withZeros(6)
+                .withString(success, UTF_8)
+                .build();
+
+        var msg = new QueryRequest(buf);
+        handler.doOnQuery(ctx, msg);
+
+        waitToComplete();
         verify(stageRequest).completed(any());
     }
 

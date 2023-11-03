@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011-2022 dCache.org <support@dcache.org>
+ * Copyright (C) 2011-2023 dCache.org <support@dcache.org>
  * <p>
  * This file is part of xrootd4j.
  * <p>
@@ -28,6 +28,7 @@ import static org.dcache.xrootd.protocol.XrootdProtocol.kXR_readable;
 import static org.dcache.xrootd.protocol.XrootdProtocol.kXR_writable;
 import static org.dcache.xrootd.protocol.XrootdProtocol.kXR_xset;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.net.InetAddresses;
 import diskCacheV111.util.Adler32;
 import diskCacheV111.util.CacheException;
@@ -168,12 +169,23 @@ public class DataServerHandler extends XrootdProtocolRequestHandler {
      */
     private final String hsmType;
 
-    public DataServerHandler(String type, String name,
+    /**
+     * whatever close on restore indicates successful restore.
+     */
+    private boolean success_on_close;
+
+    public DataServerHandler(String type, String name, boolean soc,
           ConcurrentMap<String, PendingRequest> pendingRequests) {
 
         hsmType = type;
         hsmName = name;
+        success_on_close = soc;
         this.pendingRequests = pendingRequests;
+    }
+
+    @VisibleForTesting
+    void setSuccessOnClose(boolean soc) {
+        success_on_close = soc;
     }
 
     @Override
@@ -370,7 +382,8 @@ public class DataServerHandler extends XrootdProtocolRequestHandler {
                   Strings.describeBandwidth(migrationRequest.ioStat.getMean())
             );
 
-            if (r instanceof StageRequest) {
+
+            if (success_on_close && r instanceof StageRequest) {
                 ForkJoinPool.commonPool().execute(() -> {
                     try {
                         Checksum checksum = calculateChecksum(file);

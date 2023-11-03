@@ -83,17 +83,18 @@ queue define class -expire=0 -pending=0 -total=0 -open <hsmType> *
 
 ### The available configuration options:
 
-| Name                 | Description                                                    | required | default    |
-|:---------------------|:---------------------------------------------------------------|---------:|------------|
-| cta-instance-name    | The dCache instance name configured in CTA                     |      yes | -          |
-| cta-frontend-addr    | The CTA `cta-dcache` endpoint                                  |      yes | -          |
-| cta-user             | The dCache instance associated user in CTA                     |      yes | -          |
-| cta-group            | The dCache instance associated group in CTA                    |      yes | -          |
-| cta-ca-chain         | The path to CA root chain for use with TLS                     |       no | -          |
-| cta-use-tls          | A switch (true/false) to enable TLS for CTA control connection |       no | `false`    |
-| cta-frontend-timeout | How log dCache waits in seconds for CTA frontend to reply      |       no | 30         |
-| io-endpoint          | The hostname or IP offered by dCache for IO by CTA             |       no | `hostname` |
-| io-port              | The TCP port offered by dCache for IO by CTA                   |       no | -          |
+| Name                 | Description                                                                                       | required | default    |
+|:---------------------|:--------------------------------------------------------------------------------------------------|---------:|------------|
+| cta-instance-name    | The dCache instance name configured in CTA                                                        |      yes | -          |
+| cta-frontend-addr    | The CTA `cta-dcache` endpoint                                                                     |      yes | -          |
+| cta-user             | The dCache instance associated user in CTA                                                        |      yes | -          |
+| cta-group            | The dCache instance associated group in CTA                                                       |      yes | -          |
+| cta-ca-chain         | The path to CA root chain for use with TLS                                                        |       no | -          |
+| cta-use-tls          | A switch (true/false) to enable TLS for CTA control connection                                    |       no | `false`    |
+| cta-frontend-timeout | How log dCache waits in seconds for CTA frontend to reply                                         |       no | 30         |
+| io-endpoint          | The hostname or IP offered by dCache for IO by CTA                                                |       no | `hostname` |
+| io-port              | The TCP port offered by dCache for IO by CTA                                                      |       no | -          |
+| restore-success-on-close | A swith to enable/disable success on close for restores. Backward compatibility with CTA pre-5.11 |       no | `true`     |
 
 ## Acknowledgements
 

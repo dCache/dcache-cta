@@ -66,6 +66,8 @@ public class CtaNearlineStorage implements NearlineStorage {
     public static final String IO_PORT = "io-port";
     public static final String CTA_REQUEST_TIMEOUT = "cta-frontend-timeout";
 
+    public static final String RESTORE_SUCCESS_ON_CLOSE = "restore-success-on-close";
+
     protected final String type;
     protected final String name;
 
@@ -134,6 +136,12 @@ public class CtaNearlineStorage implements NearlineStorage {
      * CTA frontend request timeout.
      */
     private int ctaRequestTimeoutInSec = 30;
+
+    /**
+     * Whatever a close on restore treated as success.
+     * REVISIT: Backward compatibility with CTA pre-5.11
+     */
+    private boolean success_on_close;
 
     /**
      * {@link StreamObserver} that the given runnable when complete.
@@ -515,12 +523,14 @@ public class CtaNearlineStorage implements NearlineStorage {
         if (timeoutString != null) {
             ctaRequestTimeoutInSec = Integer.parseInt(timeoutString);
         }
+
+        success_on_close = Boolean.parseBoolean(properties.getOrDefault(RESTORE_SUCCESS_ON_CLOSE, "true"));
     }
 
     @Override
     public void start() {
 
-        dataMover = new DataMover(type, name, ioSocketAddress, pendingRequests);
+        dataMover = new DataMover(type, name, ioSocketAddress, success_on_close, pendingRequests);
         dataMover.startAsync().awaitRunning();
 
         ChannelCredentials credentials;
