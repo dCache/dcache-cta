@@ -313,6 +313,16 @@
     <profiles>
         <profile>
             <id>cli</id>
+            <activation>
+                <activeByDefault>false</activeByDefault>
+            </activation>
+            <dependencies>
+                <dependency>
+                    <groupId>info.picocli</groupId>
+                    <artifactId>picocli</artifactId>
+                    <version>4.7.4</version>
+                </dependency>
+            </dependencies>
             <build>
                 <plugins>
                     <plugin>

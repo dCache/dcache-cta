@@ -34,58 +34,94 @@ import java.nio.file.attribute.PosixFileAttributeView;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicBoolean;
 
-public class CtaCli {
+import picocli.CommandLine;
+
+@CommandLine.Command(name = "cta-cli", mixinStandardHelpOptions = true, version = "0.0.1",
+        description = "Command line utility for CTA-gRPC interface",
+        subcommands = {CtaCli.Ping.class, CtaCli.ArchiveCmd.class}
+
+)
+public class CtaCli implements Runnable {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(CtaCli.class);
 
-    private static void usage() {
-        System.err.println("Usage: ctacli <host> <port> <cmd> <args>...");
-        System.err.println("\n");
-        System.err.println("  archive <path> <storage class>");
-        System.exit(2);
-    }
+    @CommandLine.Command(name = "ping")
+    static class Ping implements Runnable {
 
+        @CommandLine.Parameters(index = "0", description = "cta frontend host")
+        String host;
 
-    private static void runPing(String host, int port) {
+        @CommandLine.Parameters(index = "1", description = "cta frontend port")
+        int port;
 
-        var credentials = InsecureChannelCredentials.create();
-        var channel = NettyChannelBuilder.forAddress(host, port,
-                        credentials)
-                .disableServiceConfigLookUp() // no lookup in DNS for service record
-                .channelType(NioSocketChannel.class) // use Nio event loop instead of epoll
-                .eventLoopGroup(new NioEventLoopGroup(1))
-                .directExecutor() // use netty threads
-                .build();
+        @Override
+        public void run() {
 
-        try {
-            var cta = CtaRpcGrpc.newBlockingStub(channel);
+            var credentials = InsecureChannelCredentials.create();
+            var channel = NettyChannelBuilder.forAddress(host, port,
+                            credentials)
+                    .disableServiceConfigLookUp() // no lookup in DNS for service record
+                    .channelType(NioSocketChannel.class) // use Nio event loop instead of epoll
+                    .eventLoopGroup(new NioEventLoopGroup(1))
+                    .directExecutor() // use netty threads
+                    .build();
+
             try {
-                var res = cta.version(Empty.newBuilder().build());
-                System.out.println("Remote CTA version: " + res.getCtaVersion());
-                System.exit(0);
-            } catch (Exception e) {
-                e.printStackTrace();
-                System.out.flush();
+                var cta = CtaRpcGrpc.newBlockingStub(channel);
+                try {
+                    var res = cta.version(Empty.newBuilder().build());
+                    System.out.println("Remote CTA version: " + res.getCtaVersion());
+                    System.exit(0);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    System.out.flush();
 
-                System.err.println("Ping failed: " + e);
-                System.exit(1);
+                    System.err.println("Ping failed: " + e);
+                    System.exit(1);
+                }
+
+            } finally {
+                channel.shutdown();
             }
 
-        } finally {
-            channel.shutdown();
         }
-
     }
 
 
-    private static class ArchiveCmd {
+    @CommandLine.Command(name = "archive")
+    static class ArchiveCmd implements Callable<Integer> {
 
         private final CtaNearlineStorage driver = new CtaNearlineStorage("aType", "aName");
         private final CountDownLatch waitToCpmplete = new CountDownLatch(1);
 
-        ArchiveCmd(String host, int port, String user, String group, String instance) {
+
+        @CommandLine.Parameters(index = "0", description = "cta frontend host")
+        String host;
+
+        @CommandLine.Parameters(index = "1", description = "cta frontend port")
+        int port;
+
+        @CommandLine.Parameters(index = "2", description = "user to issue cta request")
+        String user;
+
+        @CommandLine.Parameters(index = "3", description = "group to issue cta request")
+        String group;
+
+        @CommandLine.Parameters(index = "4", description = "disk instance name")
+        String instance;
+
+        @CommandLine.Parameters(index = "5", description = "file's storage class")
+        String storageClass;
+
+        @CommandLine.Parameters(index = "6", description = "file's path")
+        String file;
+
+        @Override
+        public Integer call() throws IOException, InterruptedException {
 
             var drvConfig = Map.of(CTA_USER,
                     user, CTA_GROUP,
@@ -98,19 +134,32 @@ public class CtaCli {
 
             driver.configure(drvConfig);
             driver.start();
-        }
 
-        public void run(String file, String storageClass) throws IOException, InterruptedException {
+            AtomicBoolean success = new AtomicBoolean();
 
             try {
                 var request = mockedFlushRequest(file, storageClass);
-                driver.flush(Set.of(request));
+                driver.flush(Set.of(new ForwardingFlushRequest() {
+                    @Override
+                    protected FlushRequest delegate() {
+                        return request;
+                    }
 
+                    @Override
+                    public void completed(Set<URI> uris) {
+                        success.set(true);
+                        super.completed(uris);
+                    }
+                }));
                 waitToCpmplete.await();
-
             } finally {
                 driver.shutdown();
             }
+
+            if (!success.get()) {
+                return 3;
+            }
+            return 0;
         }
 
         private FlushRequest mockedFlushRequest(String s, String storageClass) throws IOException {
@@ -128,7 +177,7 @@ public class CtaCli {
                     .pnfsId(InodeId.toPnfsid(id)) // just reuse
                     .checksum(calculateChecksum(path.toFile())).build();
 
-            var request = new FlushRequest() {
+            return new FlushRequest() {
                 @Override
                 public File getFile() {
                     return path.toFile();
@@ -187,8 +236,6 @@ public class CtaCli {
                     waitToCpmplete.countDown();
                 }
             };
-
-            return request;
         }
 
 
@@ -212,29 +259,20 @@ public class CtaCli {
     }
 
 
+    @Override
+    public void run() {
+    }
+
     public static void main(String[] args) throws IOException, InterruptedException {
+        var cmd = new CommandLine(new CtaCli());
+        cmd.setExecutionStrategy(new CommandLine.RunAll()); // default is RunLast
+        int exitCode = cmd.execute(args);
 
-        if (args.length < 3) {
-            usage();
+        if (args.length == 0) {
+            cmd.usage(System.out);
         }
 
-        var cmd = args[2];
-        switch (cmd) {
-            case "ping":
-                runPing(args[0], Integer.parseInt(args[1]));
-                break;
-            case "archive":
-                if (args.length != 8) {
-                    usage();
-                }
-                new ArchiveCmd(args[0], Integer.parseInt(args[1]), args[3], args[4], args[5])
-                        .run(args[6], args[7]);
-                break;
-            default:
-                usage();
-        }
-
-        System.exit(0);
+        System.exit(exitCode);
     }
 
     public static class InodeId {
