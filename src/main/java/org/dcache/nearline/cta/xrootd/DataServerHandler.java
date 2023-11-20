@@ -445,11 +445,32 @@ public class DataServerHandler extends XrootdProtocolRequestHandler {
                     }
                     var archiveId = m.group("archiveid");
                     var id = getPnfsId(r);
-                    var hsmUrl = URI.create(
-                          hsmType + "://" + hsmName + "/" + id + "?archiveid=" + archiveId);
-                    r.completed(Set.of(hsmUrl));
 
-                    LOGGER.info("Successful flushing from {} : {} : archive id: {}", new RemoteAddressHolder(ctx), requestId, archiveId);
+                    // REVISIT: java17: use switch with pattern
+                    if (r instanceof StageRequest) {
+                        var file = getFile(r);
+                        ForkJoinPool.commonPool().execute(() -> {
+                            try {
+                                Checksum checksum = calculateChecksum(file);
+                                LOGGER.info("Files {} checksum after restore: {}", file, checksum);
+                                LOGGER.info("Successful restored from {} : {} : archive id: {}", new RemoteAddressHolder(ctx), requestId, archiveId);
+                                r.completed(Set.of(checksum));
+                            } catch (IOException e) {
+                                LOGGER.error("Post-restore checksum calculation of {} failed: {}", file,
+                                        e.getMessage());
+                                r.failed(e);
+                            }
+                        });
+
+                    } else if (r instanceof FlushRequest ) {
+                        var hsmUrl = URI.create(
+                                hsmType + "://" + hsmName + "/" + id + "?archiveid=" + archiveId);
+                        r.completed(Set.of(hsmUrl));
+                        LOGGER.info("Successful flushing from {} : {} : archive id: {}", new RemoteAddressHolder(ctx), requestId, archiveId);
+                    } else {
+                        LOGGER.warn("Unexpected request type: {}", r.getClass());
+                        throw new XrootdException(kXR_ArgInvalid, "Invalid request type: " + r.getClass());
+                    }
                 }
 
                 return new QueryResponse(msg, "");
