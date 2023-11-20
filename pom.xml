@@ -215,6 +215,11 @@
                     <fork>true</fork>
                     <release>${java.version}</release>
                     <showDeprecation>true</showDeprecation>
+                    <excludes>
+                        <exclude>
+                            **/org/dcache/nearline/cta/CtaCli.java
+                        </exclude>
+                    </excludes>
                 </configuration>
             </plugin>
 
