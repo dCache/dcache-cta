@@ -77,7 +77,7 @@ package_rpm:
   stage: package
   dependencies:
     - build
-  image: almalinux:8
+  image: almalinux:9
   script:
     - echo $DCACHE_ORG_PGP_KEY | base64 -d -i > secret.gpg
     - gpg --quiet --batch --yes --allow-secret-key-import --passphrase="$DCACHE_ORG_PGP_KEY_PASS" --import secret.gpg
@@ -98,9 +98,8 @@ publish_tar:
   only:
     - tags
   stage: publish
-  image: almalinux:8
+  image: almalinux:9-minimal
   script:
-    - dnf install -y curl
     - PACKAGE=$(ls -1 target/dcache-cta*.tar.gz)
     - PACKAGENAME=$(basename ${PACKAGE})
     - VERSION_1=${PACKAGENAME##*-}
@@ -113,9 +112,8 @@ publish_rpm:
   stage: publish
   dependencies:
     - package_rpm
-  image: almalinux:8
+  image: almalinux:9-minimal
   script:
-    - dnf install -y curl
     - PACKAGE=$(ls -1 rpmbuild/RPMS/noarch/dcache-cta-*)
     - 'curl -sS -u ${YUM_REPO_USER}:${YUM_REPO_PASS} --upload-file ${PACKAGE} ${YUM_REPO_URL}/`basename ${PACKAGE}`'
 
