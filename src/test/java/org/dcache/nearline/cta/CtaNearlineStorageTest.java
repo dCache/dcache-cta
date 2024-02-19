@@ -15,6 +15,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -356,6 +357,25 @@ public class CtaNearlineStorageTest {
         waitToComplete();
 
         verify(request).completed(any());
+    }
+
+    @Test
+    public void testRemoveZeroByteFiles() {
+
+        var request = mockedRemoveRequest();
+        when(request.getUri()).thenReturn(
+                URI.create("cta://cta/0000C9B4E3768770452E8B1B8E0232584872?archiveid=*"));
+
+        driver = new CtaNearlineStorage("foo", "bar");
+        driver.configure(drvConfig);
+        driver.start();
+
+        driver.remove(Set.of(request));
+        waitToComplete();
+
+        verify(request).completed(any());
+        // ensure that shortcut is used
+        verify(cta.ctaSvc(), never()).delete(any(), any());
     }
 
     @Test

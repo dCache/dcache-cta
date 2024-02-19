@@ -426,6 +426,13 @@ public class CtaNearlineStorage implements NearlineStorage {
     public void remove(Iterable<RemoveRequest> requests) {
 
         for (var r : requests) {
+
+            // short-circuit zero-byte files
+            if (r.getUri().getQuery().contains("archiveid=*")) {
+                r.completed(null);
+                continue;
+            }
+
             var deleteRequest = ctaRequestFactory.valueOf(r);
             cta.withDeadline(getRequestDeadline()).delete(deleteRequest, new StreamObserver<>() {
                 @Override

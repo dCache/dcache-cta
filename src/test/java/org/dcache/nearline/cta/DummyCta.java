@@ -1,5 +1,6 @@
 package org.dcache.nearline.cta;
 
+import static org.mockito.Mockito.spy;
 import ch.cern.cta.rpc.ArchiveResponse;
 import ch.cern.cta.rpc.CreateResponse;
 import ch.cern.cta.rpc.CtaRpcGrpc;
@@ -29,7 +30,12 @@ public class DummyCta {
 
     private volatile boolean drop;
 
+    private final CtaRpcGrpc.CtaRpcImplBase ctaSvc;
+
     public DummyCta(File cert, File key) throws Exception {
+
+        ctaSvc = spy(new CtaSvc());
+
         server = NettyServerBuilder.forPort(0)
               .sslContext(GrpcSslContexts.forServer(cert, key)
                     .clientAuth(ClientAuth.NONE)
@@ -39,7 +45,7 @@ public class DummyCta {
               .bossEventLoopGroup( new NioEventLoopGroup(2, new ThreadFactoryBuilder().setNameFormat("dummy-cta-server-accept-%d").build()))
               .workerEventLoopGroup(new NioEventLoopGroup(2, new ThreadFactoryBuilder().setNameFormat("dummy-cta-server-worker-%d").build()))
               .channelType(NioServerSocketChannel.class)
-              .addService(new CtaSvc())
+              .addService(ctaSvc)
               .directExecutor()
               .build();
     }
@@ -53,6 +59,10 @@ public class DummyCta {
         if(!server.awaitTermination(1, TimeUnit.SECONDS)) {
             server.shutdownNow();
         }
+    }
+
+    public CtaRpcGrpc.CtaRpcImplBase ctaSvc() {
+        return ctaSvc;
     }
 
     public String getConnectString() {
