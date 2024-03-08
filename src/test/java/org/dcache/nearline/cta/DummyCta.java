@@ -349,16 +349,4 @@ public class DummyCta {
             }
         }
     }
-
-    public void waitToReply() throws AssertionError {
-        waitToReply(1);
-    }
-
-    public void waitToReply(int n) throws AssertionError {
-        try {
-            TimeUnit.SECONDS.sleep(n);
-        } catch (InterruptedException e) {
-            throw new AssertionError("Should neve happen", e);
-        }
-    }
 }
