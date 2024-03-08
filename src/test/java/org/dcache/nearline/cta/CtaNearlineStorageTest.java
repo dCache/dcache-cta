@@ -10,7 +10,6 @@ import static org.dcache.nearline.cta.CtaNearlineStorage.CTA_USER;
 import static org.dcache.nearline.cta.CtaNearlineStorage.IO_PORT;
 import static org.dcache.nearline.cta.TestUtils.generateSelfSignedCert;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.doAnswer;
@@ -32,9 +31,6 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import org.dcache.namespace.FileAttribute;
 import org.dcache.pool.nearline.spi.FlushRequest;
 import org.dcache.pool.nearline.spi.RemoveRequest;
@@ -177,7 +173,6 @@ public class CtaNearlineStorageTest {
 
         var request = mockedFlushRequest();
         driver.flush(Set.of(request));
-        waitToComplete();
         verify(request).failed(any(CacheException.class));
     }
 
@@ -293,7 +288,6 @@ public class CtaNearlineStorageTest {
 
         cta.fail();
         driver.stage(Set.of(request));
-        waitToComplete();
 
         verify(request).failed(any());
     }
@@ -309,7 +303,6 @@ public class CtaNearlineStorageTest {
 
         cta.fail();
         driver.flush(Set.of(request));
-        waitToComplete();
 
         verify(request).failed(any());
     }
@@ -354,7 +347,6 @@ public class CtaNearlineStorageTest {
         driver.start();
 
         driver.remove(Set.of(request));
-        waitToComplete();
 
         verify(request).completed(any());
     }
@@ -371,7 +363,6 @@ public class CtaNearlineStorageTest {
         driver.start();
 
         driver.remove(Set.of(request));
-        waitToComplete();
 
         verify(request).completed(any());
         // ensure that shortcut is used
@@ -389,7 +380,6 @@ public class CtaNearlineStorageTest {
         cta.fail();
 
         driver.remove(Set.of(request));
-        waitToComplete();
 
         verify(request).failed(any());
     }
@@ -403,8 +393,6 @@ public class CtaNearlineStorageTest {
         driver.start();
 
         driver.stage(Set.of(request));
-
-        cta.waitToReply();
         assertEquals("unexpected pending request queue size", 1,
               driver.getPendingRequestsCount());
     }
@@ -419,7 +407,6 @@ public class CtaNearlineStorageTest {
 
         driver.stage(Set.of(request));
 
-        cta.waitToReply();
         driver.getRequest("0000C9B4E3768770452E8B1B8E0232584872").getRequest().completed(Set.of());
         assertEquals("pending request count not zero", 0, driver.getPendingRequestsCount());
     }
@@ -434,7 +421,6 @@ public class CtaNearlineStorageTest {
 
         driver.flush(Set.of(request));
 
-        cta.waitToReply();
         driver.getRequest("0000C9B4E3768770452E8B1B8E0232584872").getRequest().completed(Set.of());
         assertEquals("pending request count not zero", 0, driver.getPendingRequestsCount());
     }
@@ -449,7 +435,6 @@ public class CtaNearlineStorageTest {
 
         driver.stage(Set.of(request));
 
-        cta.waitToReply();
         driver.getRequest("0000C9B4E3768770452E8B1B8E0232584872").getRequest().failed(new Exception());
         assertEquals("pending request count not zero", 0, driver.getPendingRequestsCount());
     }
@@ -464,7 +449,6 @@ public class CtaNearlineStorageTest {
 
         driver.stage(Set.of(request));
 
-        cta.waitToReply();
         driver.getRequest("0000C9B4E3768770452E8B1B8E0232584872").getRequest().failed(1, "foo");
         assertEquals("pending request count not zero", 0, driver.getPendingRequestsCount());
     }
@@ -479,7 +463,6 @@ public class CtaNearlineStorageTest {
 
         driver.flush(Set.of(request));
 
-        cta.waitToReply();
         assertEquals("unexpected pending request queue size", 1,
               driver.getPendingRequestsCount());
     }
@@ -494,7 +477,6 @@ public class CtaNearlineStorageTest {
 
         driver.flush(Set.of(request));
 
-        cta.waitToReply();
         driver.getRequest("0000C9B4E3768770452E8B1B8E0232584872").getRequest().failed(new Exception());
         assertEquals("pending request count not zero", 0, driver.getPendingRequestsCount());
     }
@@ -509,7 +491,6 @@ public class CtaNearlineStorageTest {
 
         driver.flush(Set.of(request));
 
-        cta.waitToReply();
         driver.getRequest("0000C9B4E3768770452E8B1B8E0232584872").getRequest().failed(1, "foo");
         assertEquals("pending request count not zero", 0, driver.getPendingRequestsCount());
     }
@@ -523,12 +504,9 @@ public class CtaNearlineStorageTest {
         driver.start();
 
         driver.stage(Set.of(request));
-        cta.waitToReply();
 
         driver.cancel(request.getId());
-        cta.waitToReply();
         assertEquals("unexpected pending request queue size", 0, driver.getPendingRequestsCount());
-
     }
 
     @Test
@@ -540,12 +518,8 @@ public class CtaNearlineStorageTest {
         driver.start();
 
         driver.stage(Set.of(request));
-
-        cta.waitToReply();
-
         driver.cancel(UUID.randomUUID());
         assertEquals("unexpected pending request queue size", 1, driver.getPendingRequestsCount());
-
     }
 
     @Test
@@ -557,13 +531,8 @@ public class CtaNearlineStorageTest {
         driver.start();
 
         driver.stage(Set.of(request));
-        cta.waitToReply();
-
         driver.cancel(request.getId());
-        cta.waitToReply();
-
         verify(request).failed(any(CancellationException.class));
-
     }
 
     @Test
@@ -576,14 +545,11 @@ public class CtaNearlineStorageTest {
 
         driver.stage(Set.of(request));
 
-        cta.waitToReply();
-
         cta.fail();
         driver.cancel(request.getId());
         verify(request, times(0)).failed(any(CancellationException.class));
         verify(request, times(0)).failed(anyInt(), any());
         verify(request, times(0)).completed(any());
-
     }
 
     @Test
@@ -595,13 +561,9 @@ public class CtaNearlineStorageTest {
         driver.start();
 
         driver.flush(Set.of(request));
-        cta.waitToReply();
-
         driver.cancel(request.getId());
-        cta.waitToReply();
 
         verify(request).failed(any(CancellationException.class));
-
     }
 
     @Test
@@ -614,7 +576,6 @@ public class CtaNearlineStorageTest {
 
         driver.flush(Set.of(request));
 
-        cta.waitToReply();
         cta.fail();
 
         driver.cancel(request.getId());
@@ -664,7 +625,6 @@ public class CtaNearlineStorageTest {
         cta.drop();
         driver.stage(Set.of(request));
 
-        cta.waitToReply(4);
         verify(request, times(1)).failed(any(CacheException.class));
     }
 
@@ -680,7 +640,6 @@ public class CtaNearlineStorageTest {
         cta.drop();
         driver.flush(Set.of(request));
 
-        cta.waitToReply(4);
         verify(request, times(1)).failed(any(CacheException.class));
     }
 
@@ -695,16 +654,7 @@ public class CtaNearlineStorageTest {
         cta.drop();
         driver.remove(Set.of(request));
 
-        cta.waitToReply(4);
         verify(request, times(1)).failed(any(CacheException.class));
-    }
-
-    void waitToComplete() {
-        try {
-            waitForComplete.get(1, TimeUnit.SECONDS);
-        } catch (InterruptedException | ExecutionException | TimeoutException e) {
-            fail("Request not complete");
-        }
     }
 
     private FlushRequest mockedFlushRequest() {
