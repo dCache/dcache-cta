@@ -26,6 +26,7 @@ import diskCacheV111.vehicles.GenericStorageInfo;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
+import java.security.GeneralSecurityException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -35,6 +36,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import org.bouncycastle.operator.OperatorCreationException;
 import org.dcache.namespace.FileAttribute;
 import org.dcache.pool.nearline.spi.FlushRequest;
 import org.dcache.pool.nearline.spi.RemoveRequest;
@@ -43,7 +45,9 @@ import org.dcache.util.Checksum;
 import org.dcache.util.ChecksumType;
 import org.dcache.vehicles.FileAttributes;
 import org.junit.After;
+import org.junit.AfterClass;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 public class CtaNearlineStorageTest {
@@ -54,16 +58,25 @@ public class CtaNearlineStorageTest {
 
     private CompletableFuture<Void> waitForComplete;
 
-    private File keyFile;
-    private File certFile;
+    private static File keyFile;
+    private static File certFile;
+
+    @BeforeClass
+    public static void setUpGlobal()
+          throws IOException, GeneralSecurityException, OperatorCreationException {
+        keyFile = File.createTempFile("hostkey-", ".pem");
+        certFile = File.createTempFile("hostcert-", ".pem");
+        generateSelfSignedCert(certFile, keyFile);
+    }
+
+    @AfterClass
+    public static void tierDownGlobal() {
+        keyFile.delete();
+        certFile.delete();
+    }
 
     @Before
     public void setUp() throws Exception {
-
-        keyFile = File.createTempFile("hostkey-", ".pem");
-        certFile = File.createTempFile("hostcert-", ".pem");
-
-        generateSelfSignedCert(certFile, keyFile);
 
         cta = new DummyCta(certFile, keyFile);
         cta.start();
@@ -92,9 +105,6 @@ public class CtaNearlineStorageTest {
         if (driver != null) {
             driver.shutdown();
         }
-
-        keyFile.delete();
-        certFile.delete();
     }
 
     @Test(expected = NullPointerException.class)
