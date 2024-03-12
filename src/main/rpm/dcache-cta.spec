@@ -1,3 +1,9 @@
+# compatibility with older Linux versions
+%define _source_payload w9.gzdio
+%define _binary_payload w9.gzdio
+%define _source_filedigest_algorithm 1
+%define _binary_filedigest_algorithm 1
+
 Summary: dCache nearline storage provider for CTA
 Vendor: dCache.org
 Name: dcache-cta
