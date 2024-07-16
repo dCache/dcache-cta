@@ -450,7 +450,7 @@ public class CtaNearlineStorage implements NearlineStorage {
             ctaRequestTimeoutInSec = Integer.parseInt(timeoutString);
         }
 
-        success_on_close = Boolean.parseBoolean(properties.getOrDefault(RESTORE_SUCCESS_ON_CLOSE, "true"));
+        success_on_close = Boolean.parseBoolean(properties.getOrDefault(RESTORE_SUCCESS_ON_CLOSE, "false"));
     }
 
     @Override
