@@ -33,6 +33,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
 import ch.cern.cta.rpc.CtaRpcGrpc.CtaRpcBlockingStub;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import org.dcache.namespace.FileAttribute;
 import org.dcache.nearline.cta.xrootd.DataMover;
@@ -480,7 +481,8 @@ public class CtaNearlineStorage implements NearlineStorage {
               .channelType(NioSocketChannel.class) // use Nio event loop instead of epoll
               .eventLoopGroup(new NioEventLoopGroup(0,
                     new ThreadFactoryBuilder().setNameFormat("cta-grpc-worker-%d").build()))
-              .directExecutor() // use netty threads
+              .executor(Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors()*2,
+                    new ThreadFactoryBuilder().setNameFormat("cta-grpc-callback-runner-%d").build()))
               .build();
 
         cta = CtaRpcGrpc.newBlockingStub(channel);
