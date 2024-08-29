@@ -109,6 +109,7 @@ queue define class -expire=0 -pending=0 -total=0 -open <hsmType> *
 | io-port                  | The TCP port offered by dCache for IO by CTA                   |       no | -          |
 | use-dio                  | Use Direct-I/O                                                 |       no | `false`    |
 | restore-success-on-close | **obsolete**                                                   |        - | -          |
+| cleanup-journal          | The location of the journal file used for cleanup on start     |       no | -          |
 
 ### Load balancing and failover
 

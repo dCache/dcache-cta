@@ -58,6 +58,11 @@ public class CtaNearlineStorage implements NearlineStorage {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(CtaNearlineStorage.class);
 
+    /**
+     * Unicode character for screaming face.
+     */
+    public static final String MWAI_SCREAMING = Character.toString(0x1F631);
+
     public static final String CTA_INSTANCE = "cta-instance-name";
     public static final String CTA_ENDPOINT = "cta-frontend-addr";
     public static final String CTA_USER = "cta-user";
@@ -68,6 +73,7 @@ public class CtaNearlineStorage implements NearlineStorage {
     public static final String IO_PORT = "io-port";
     public static final String CTA_REQUEST_TIMEOUT = "cta-frontend-timeout";
     public static final String DIO = "use-dio";
+    public static final String CTA_REQUEST_JOURNAL = "cleanup-journal";
 
     protected final String type;
     protected final String name;
@@ -166,6 +172,11 @@ public class CtaNearlineStorage implements NearlineStorage {
      */
     private final RequestCounters<Action> requestCounters = new RequestCounters<>("CTA gRPC Requests counters");
 
+    /**
+     * Pending request to CTA.
+     */
+    private CleanupJournal pendingRequestsTracker;
+
     public CtaNearlineStorage(String type, String name) {
 
         Objects.requireNonNull(type, "HSM type is not provided");
@@ -251,18 +262,21 @@ public class CtaNearlineStorage implements NearlineStorage {
             @Override
             public void failed(Exception e) {
                 pendingRequests.remove(id);
+                pendingRequestsTracker.remove(id);
                 super.failed(e);
             }
 
             @Override
             public void failed(int i, String s) {
                 pendingRequests.remove(id);
+                pendingRequestsTracker.remove(id);
                 super.failed(i, s);
             }
 
             @Override
             public void completed(Set<URI> uris) {
                 pendingRequests.remove(id);
+                pendingRequestsTracker.remove(id);
                 super.completed(uris);
             }
         };
@@ -280,7 +294,9 @@ public class CtaNearlineStorage implements NearlineStorage {
 
         var cancelRequest = ctaRequestFactory.getAbortStoreRequest(ar, response);
 
+        pendingRequestsTracker.put(id, cancelRequest);
         pendingRequests.put(id, new PendingRequest(r, response.getRequestObjectstoreId(), PendingRequest.Type.FLUSH) {
+
                     @Override
                     public void cancel() {
                         try {
@@ -313,18 +329,21 @@ public class CtaNearlineStorage implements NearlineStorage {
                 @Override
                 public void failed(Exception e) {
                     pendingRequests.remove(id);
+                    pendingRequestsTracker.remove(id);
                     super.failed(e);
                 }
 
                 @Override
                 public void failed(int i, String s) {
                     pendingRequests.remove(id);
+                    pendingRequestsTracker.remove(id);
                     super.failed(i, s);
                 }
 
                 @Override
                 public void completed(Set<Checksum> checksums) {
                     pendingRequests.remove(id);
+                    pendingRequestsTracker.remove(id);
                     super.completed(checksums);
                 }
             };
@@ -349,7 +368,9 @@ public class CtaNearlineStorage implements NearlineStorage {
                 );
 
                 var cancelRequest = ctaRequestFactory.getAbortStageRequest(rr, response);
+                pendingRequestsTracker.put(id, cancelRequest);
                 pendingRequests.put(id, new PendingRequest(r, response.getRequestObjectstoreId(), PendingRequest.Type.STAGE) {
+
                             @Override
                             public void cancel() {
                                 // on cancel send the request to CTA; on success cancel the requests
@@ -442,6 +463,7 @@ public class CtaNearlineStorage implements NearlineStorage {
         String user = properties.get(CTA_USER);
         String group = properties.get(CTA_GROUP);
         String timeoutString = properties.get(CTA_REQUEST_TIMEOUT);
+        String journal = properties.get(CTA_REQUEST_JOURNAL);
 
         checkArgument(instance != null, "dCache instance name is not set.");
         checkArgument(endpoint != null, "CTA frontend is not set.");
@@ -485,6 +507,12 @@ public class CtaNearlineStorage implements NearlineStorage {
         }
 
         dio = Boolean.parseBoolean(properties.getOrDefault(DIO, "false"));
+
+        if (journal != null) {
+            pendingRequestsTracker = new DigitalMwai(journal);
+        } else {
+            pendingRequestsTracker = new NopCleanupJournal();
+        }
     }
 
     @Override
@@ -526,6 +554,12 @@ public class CtaNearlineStorage implements NearlineStorage {
                     LOGGER.info("Connected to CTA frontend");
                 }
         );
+
+        pendingRequestsTracker.cleanup(cta, (p, r) -> {
+            LOGGER.warn("[Mwai {}]: Found pending entry for {} : {}", MWAI_SCREAMING, p, r.getNotification().getFile().getRequestObjectstoreId());
+            return Boolean.TRUE;
+        });
+
         ctaRequestFactory = new RequestsFactory(instanceName, ctaUser, ctaGroup, dataMover);
     }
 
