@@ -1,8 +1,9 @@
 stages:
   - build
   - package
-  - publish
   - coverage
+  - publish
+  - release
 
 variables:
   MAVEN_CLI_OPTS: "--batch-mode --errors --no-transfer-progress --fail-at-end --show-version -DinstallAtEnd=true -DdeployAtEnd=true  -Dmaven.repo.local=.m2/repository"
@@ -116,6 +117,28 @@ publish_rpm:
   script:
     - PACKAGE=$(ls -1 rpmbuild/RPMS/noarch/dcache-cta-*)
     - 'curl -sS -u ${YUM_REPO_USER}:${YUM_REPO_PASS} --upload-file ${PACKAGE} ${YUM_REPO_URL}/`basename ${PACKAGE}`'
+    - echo DOWNLOAD_URL=${YUM_REPO_URL}/`basename ${PACKAGE}` > download_url.env
+  artifacts:
+    reports:
+      dotenv: download_url.env
+
+release_job:
+  stage: release
+  image: registry.gitlab.com/gitlab-org/release-cli:latest
+  only:
+    - tags
+  script:
+    - echo "Running the release job."
+  needs:
+    - publish_rpm
+  release:
+    tag_name: $CI_COMMIT_TAG
+    name: 'Release $CI_COMMIT_TAG'
+    description: 'Release $CI_COMMIT_TAG.'
+    assets:
+      links:
+        - name: 'rpm'
+          url: '$DOWNLOAD_URL'
 
 coverage:
   stage: build
