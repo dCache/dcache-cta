@@ -59,7 +59,7 @@ public class DataServerHandlerTest {
         when(ctx.channel()).thenReturn(cannel);
 
         requests = new ConcurrentHashMap<>();
-        handler = new DataServerHandler("cta", "test", true, requests);
+        handler = new DataServerHandler("cta", "test", requests);
     }
 
     @Test(expected = XrootdException.class)
@@ -193,41 +193,7 @@ public class DataServerHandlerTest {
     }
 
     @Test
-    public void testCloseAfterStage() throws XrootdException, IOException, InterruptedException {
-
-        var stageRequest = mockedStageRequest();
-
-        var buf = new ByteBufBuilder()
-              .withShort(1)    // stream id
-              .withShort(XrootdProtocol.kXR_open)
-              .withShort(0)
-              .withShort(XrootdProtocol.kXR_delete | XrootdProtocol.kXR_new)
-              .withZeros(12) // padding
-              .withString("0000C9B4E3768770452E8B1B8E0232584872", UTF_8)
-              .build();
-
-        var openMsg = new OpenRequest(buf);
-
-        var openResponse = handler.doOnOpen(ctx, openMsg);
-
-        buf = new ByteBufBuilder()
-              .withShort(1)    // stream id
-              .withShort(XrootdProtocol.kXR_close)
-              .withInt(openResponse.getFileHandle()) // fh
-              .build();
-
-        var closeMgs = new CloseRequest(buf);
-
-        handler.doOnClose(ctx, closeMgs);
-        waitToComplete();
-
-        verify(stageRequest).completed(any());
-    }
-
-    @Test
     public void testCloseAfterStageNoReport() throws XrootdException, IOException, InterruptedException {
-
-        handler.setSuccessOnClose(false);
         var stageRequest = mockedStageRequest();
 
         var buf = new ByteBufBuilder()
@@ -257,8 +223,6 @@ public class DataServerHandlerTest {
 
     @Test
     public void testCloseAfterStageReport() throws XrootdException, IOException, InterruptedException {
-
-        handler.setSuccessOnClose(false);
         var stageRequest = mockedStageRequest();
 
         var buf = new ByteBufBuilder()

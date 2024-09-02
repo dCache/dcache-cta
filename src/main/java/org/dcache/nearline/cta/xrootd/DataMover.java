@@ -69,14 +69,11 @@ public class DataMover extends AbstractIdleService implements CtaTransportProvid
 
     private volatile String url;
 
-    private final boolean success_on_close;
-
-    public DataMover(String type, String name, InetSocketAddress sa, boolean soc,
+    public DataMover(String type, String name, InetSocketAddress sa,
           ConcurrentMap<String, PendingRequest> pendingRequests) {
 
         hsmType = type;
         hsmName = name;
-        success_on_close = soc;
 
         try {
             this.pendingRequests = pendingRequests;
@@ -184,7 +181,7 @@ public class DataMover extends AbstractIdleService implements CtaTransportProvid
             ServerProtocolFlags flags = new ServerProtocolFlags(0);
             TLSSessionInfo tlsSessionInfo = new TLSSessionInfo(flags);
 
-            DataServerHandler dataServer = new DataServerHandler(hsmType, hsmName, success_on_close, pendingRequests);
+            DataServerHandler dataServer = new DataServerHandler(hsmType, hsmName, pendingRequests);
             dataServer.setSigningPolicy(signingPolicy);
             dataServer.setTlsSessionInfo(tlsSessionInfo);
 

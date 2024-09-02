@@ -24,9 +24,7 @@ public class DataMoverTest {
     public void setUp() throws UnknownHostException {
         requests = new ConcurrentHashMap<>();
         dataMover = new DataMover("cta", "testing",
-              new InetSocketAddress(InetAddress.getLocalHost(), 0),
-              true,
-              requests);
+              new InetSocketAddress(InetAddress.getLocalHost(), 0), requests);
         dataMover.startAsync().awaitRunning();
     }
 
@@ -39,7 +37,7 @@ public class DataMoverTest {
     public void testBindError() throws UnknownHostException {
         URI uri = URI.create(dataMover.getTransport("1", 1).getDstUrl());
         new DataMover("foo", "bar",
-              new InetSocketAddress(InetAddress.getLocalHost(), uri.getPort()), true, requests)
+              new InetSocketAddress(InetAddress.getLocalHost(), uri.getPort()), requests)
               .startAsync()
               .awaitRunning();
     }
