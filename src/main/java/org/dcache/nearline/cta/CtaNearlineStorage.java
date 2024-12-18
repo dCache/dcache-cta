@@ -153,7 +153,7 @@ public class CtaNearlineStorage implements NearlineStorage {
     /**
      * Flush all files in {@code requests} to nearline storage.
      *
-     * @param requests
+     * @param requests flush requests to submit.
      */
     @Override
     public void flush(Iterable<FlushRequest> requests) {
@@ -199,8 +199,8 @@ public class CtaNearlineStorage implements NearlineStorage {
     /**
      * Flush all files in {@code requests} to nearline storage.
      *
-     * @param fr
-     * @param ctaArchiveId
+     * @param fr flush request to submit
+     * @param ctaArchiveId file's archive id in CTA
      */
     public void submitFlush(FlushRequest fr, long ctaArchiveId) {
 
@@ -262,7 +262,7 @@ public class CtaNearlineStorage implements NearlineStorage {
     /**
      * Stage all files in {@code requests} from nearline storage.
      *
-     * @param requests
+     * @param requests stage requests to submit.
      */
     @Override
     public void stage(Iterable<StageRequest> requests) {
@@ -342,7 +342,7 @@ public class CtaNearlineStorage implements NearlineStorage {
     /**
      * Delete all files in {@code requests} from nearline storage.
      *
-     * @param requests
+     * @param requests remove requests to submit.
      */
     @Override
     public void remove(Iterable<RemoveRequest> requests) {
@@ -397,7 +397,7 @@ public class CtaNearlineStorage implements NearlineStorage {
     /**
      * Applies a new configuration.
      *
-     * @param properties
+     * @param properties configuration options.
      * @throws IllegalArgumentException if the configuration is invalid
      */
     @Override
