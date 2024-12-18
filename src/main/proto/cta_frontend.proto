@@ -29,8 +29,8 @@ message Request {
     cta.eos.Notification notification = 1;      //< EOS WFE Notification
     cta.admin.AdminCmd admincmd       = 2;      //< CTA Admin Command
   }
-  string client_cta_version = 3;                           //< Client CTA version
-  string client_xrootd_ssi_protobuf_interface_version = 4; // Client xrootd-ssi-protobuf-interface version
+  // 3 DEPRECATED
+  // 4 DEPRECATED
 }
 
 
@@ -90,12 +90,13 @@ message Data {
     cta.admin.VirtualOrganizationLsItem vols_item        = 23;    //< Data for a single virtual organization
     cta.admin.VersionItem version_item                   = 24;    //< Data for a single version item
     cta.admin.MediaTypeLsItem mtls_item                  = 25;    //< Data for a single tape media type
-    // 26 deprecated
+    // 26 DEPRECATED
     cta.admin.RecycleTapeFileLsItem rtfls_item           = 27;    //< Data for a single recycle tape file item
     cta.admin.ActivityMountRuleLsItem amrls_item         = 28;    //< Data for a single activity mount rule
     cta.admin.DiskInstanceLsItem dils_item               = 29;    //< Data for a single disk instance
     cta.admin.DiskInstanceSpaceLsItem disls_item         = 30;    //< Data for a single disk instance space
-    cta.admin.SchedulingInfoLsItem sils_item             = 31;    //< Data for a single scheduling info item
+    // 31 DEPRECATED
+    cta.admin.PhysicalLibraryLsItem plls_item            = 32;    //< Data for a single physical library
   }
 }
 
@@ -113,4 +114,3 @@ message Alert {
   Audience audience                   = 1;    //< The intended audience of the message
   string message_txt                  = 2;    //< Text of the message
 }
-

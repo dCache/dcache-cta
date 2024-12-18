@@ -43,6 +43,7 @@ message OptionBoolean {
     LOOKUP_NAMESPACE                   = 15;
     NO_RECALL                          = 17;
     DIRTY_BIT                          = 18;
+    IS_REPACK_VO                       = 19;
   }
 
   Key key                              =  1;
@@ -70,6 +71,12 @@ message OptionUInt64 {
     SECONDARY_DENSITY_CODE             = 25;
     READ_MAX_DRIVES                    = 26;
     WRITE_MAX_DRIVES                   = 27;
+    NB_PHYSICAL_CARTRIDGE_SLOTS        = 28;
+    NB_AVAILABLE_CARTRIDGE_SLOTS       = 29;
+    NB_PHYSICAL_DRIVE_SLOTS            = 30;
+    MAX_FILES_TO_EXPAND                = 31;
+    LOG_UNIXTIME_MIN                   = 32;
+    LOG_UNIXTIME_MAX                   = 33;
   }
 
   Key key                              =  1;
@@ -106,6 +113,15 @@ message OptionString {
     DISK_INSTANCE_SPACE                = 31;
     VERIFICATION_STATUS                = 32;
     DISABLED_REASON                    = 33;
+    // 34 DEPRECATED
+    MEDIA_PURCHASE_ORDER_NUMBER        = 35;
+    PHYSICAL_LIBRARY                   = 36;
+    MANUFACTURER                       = 37;
+    LIBRARY_MODEL                      = 38;
+    LIBRARY_TYPE                       = 39;
+    GUI_URL                            = 40;
+    WEBCAM_URL                         = 41;
+    LIBRARY_LOCATION                   = 42;
   }
 
   Key key                              =  1;
@@ -147,11 +163,13 @@ message AdminCmd {
     CMD_VIRTUALORGANIZATION            = 19;
     CMD_VERSION                        = 20;
     CMD_MEDIATYPE                      = 21;
-    CMD_SCHEDULINGINFOS                = 22;
+    // 22 DEPRECATED
     CMD_RECYCLETAPEFILE                = 23;
     CMD_ACTIVITYMOUNTRULE              = 24;
     CMD_DISKINSTANCE                   = 25;
     CMD_DISKINSTANCESPACE              = 26;
+    CMD_ARCHIVEFILE                    = 27;
+    CMD_PHYSICALLIBRARY                = 28;
   }
   enum SubCmd {
     SUBCMD_NONE                        =  0;
@@ -174,6 +192,8 @@ message AdminCmd {
   repeated OptionUInt64  option_uint64   = 4;    //< List of integer options
   repeated OptionString  option_str      = 5;    //< List of string options
   repeated OptionStrList option_str_list = 6;    //< List of string list options
+  string client_version                  = 7;    //< CTA client version
+  string protobuf_tag                    = 8;    //< Protobuf version (tag)
 }
 
 //
@@ -207,11 +227,12 @@ enum HeaderType {
   VIRTUALORGANIZATION_LS       = 23;    //< cta-admin virtualorganization ls
   VERSION_CMD                  = 24;    //< cta-admin version (This can't be called VERSION as it clashes with an EOS macro)
   MEDIATYPE_LS                 = 25;    //< cta-admin mediatype ls
-  SCHEDULINGINFOS_LS           = 26;    //< cta-admin schedulinginfo ls
+  // 26 DEPRECATED
   RECYLETAPEFILE_LS            = 27;    //< cta-admin recycletf ls
   ACTIVITYMOUNTRULE_LS         = 28;    //< cta-admin activitymountrule ls
   DISKINSTANCE_LS              = 29;    //< cta-admin diskinstance ls
   DISKINSTANCESPACE_LS         = 30;    //< cta-admin diskinstancespace ls
+  PHYSICALLIBRARY_LS           = 31;    //< cta-admin physicallibrary ls
 
 }
 
@@ -296,7 +317,7 @@ message DriveLsItem {
   string tapepool                           =  9;
   uint64 files_transferred_in_session       = 10;
   uint64 bytes_transferred_in_session       = 11;
-  uint64 latest_bandwidth                   = 12;    // DEPRECATED. Average bandwidth can be calculated as bytes_transferred_in_session/session_elapsed_time.
+  // 12 DEPRECATED. Average bandwidth can be calculated as bytes_transferred_in_session/session_elapsed_time.
   uint64 session_id                         = 13;
   uint64 time_since_last_update             = 14;
   uint64 current_priority                   = 15;
@@ -312,6 +333,7 @@ message DriveLsItem {
   uint64 reserved_bytes                     = 25;
   uint64 session_elapsed_time               = 26;
   bool logical_library_disabled             = 27;
+  string physical_library                   = 28;
 }
 
 message FailedRequestLsItem {
@@ -375,6 +397,23 @@ message LogicalLibraryLsItem {
   cta.common.EntryLog last_modification_log = 4;
   string comment                            = 5;
   string disabled_reason                    = 6;
+  string physical_library                   = 7;
+}
+
+message PhysicalLibraryLsItem {
+  string name                               = 1;
+  string manufacturer                       = 2;
+  string model                              = 3;
+  string type                               = 4;
+  string gui_url                            = 5;
+  string webcam_url                         = 6;
+  string location                           = 7;
+  uint64 nb_physical_cartridge_slots        = 8;
+  uint64 nb_available_cartridge_slots       = 9;
+  uint64 nb_physical_drive_slots            = 10;
+  string comment                            = 11;
+  cta.common.EntryLog creation_log          = 12;
+  cta.common.EntryLog last_modification_log = 13;
 }
 
 message MediaTypeLsItem {
@@ -434,6 +473,9 @@ message RepackLsItem {
   uint64 files_left_to_archive                      = 23;
   uint64 total_failed_files                         = 24;
   string tapepool                                   = 25;
+  uint64 total_files_on_tape_at_start               = 26;
+  uint64 total_bytes_on_tape_at_start               = 27;
+  bool all_files_selected_at_start                  = 28;
 }
 
 message RequesterMountRuleLsItem {
@@ -455,14 +497,19 @@ message ShowQueuesItem {
   uint64 oldest_age                         =  7;
   uint64 priority                           =  8;
   uint64 min_age                            =  9;
+  // 10 DEPRECATED
   uint64 cur_mounts                         = 11;
   uint64 cur_files                          = 12;
   uint64 cur_bytes                          = 13;
-  uint64 bytes_per_second                   = 14;
+  // 14 DEPRECATED
+  // 15 DEPRECATED
   uint64 tapes_capacity                     = 16;
   uint64 tapes_files                        = 17;
   uint64 tapes_bytes                        = 18;
   uint64 full_tapes                         = 19;
+  // 20 DEPRECATED
+  // 21 DEPRECATED
+  // 22 DEPRECATED
   uint64 writable_tapes                     = 23;
   bool sleeping_for_space                   = 24;
   uint64 sleep_start_time                   = 25;
@@ -486,6 +533,13 @@ message StorageClassLsItem {
 }
 
 message TapeLsItem {
+  enum LabelFormat {
+    CTA          =  0;
+    OSM          =  1;
+    Enstore      =  2;
+    EnstoreLarge =  3;
+  }
+
   string vid                                =  1;
   string media_type                         =  2;
   string vendor                             =  3;
@@ -514,6 +568,9 @@ message TapeLsItem {
   string state_modified_by                  = 28;
   bool dirty                                = 29;
   string verification_status                = 30;
+  string purchase_order                     = 31;
+  string physical_library                   = 32;
+  LabelFormat label_format                  = 33;
 }
 
 message Checksum {
@@ -602,6 +659,7 @@ message VirtualOrganizationLsItem {
   uint64 write_max_drives                   =  6;
   uint64 max_file_size                      =  7;
   string diskinstance                       =  8;
+  bool   is_repack_vo                       =  9;
 }
 
 message Version{
@@ -615,26 +673,6 @@ message VersionItem {
   string catalogue_connection_string = 3;
   string catalogue_version = 4;
   bool is_upgrading = 5;
-}
-
-message SchedulingInfoLsItem {
-  string logical_library = 1; 
-  string vid = 2;
-  string tapepool = 3;
-  string vo = 4;
-  string media_type = 5;
-  string vendor = 6;
-  MountType mount_type = 7;
-  uint64 tape_capacity_in_bytes = 8;
-  uint64 mount_policy_priority = 9;
-  uint64 mount_policy_min_request_age = 10;
-  uint64 files_queued = 11;
-  uint64 bytes_queued = 12;
-  uint64 oldest_job_start_time = 13;
-  bool sleeping_mount = 14;
-  uint64 sleep_time = 15;
-  string disk_system_slept_for = 16;
-  uint32 mount_count = 17;
 }
 
 message RecycleTapeFileLsItem {
@@ -658,6 +696,7 @@ message RecycleTapeFileLsItem {
   string disk_file_path = 18;
   string reason_log = 19;
   uint64 recycle_log_time = 20;
+  string virtual_organization = 21;
 }
 
 message ActivityMountRuleLsItem {
