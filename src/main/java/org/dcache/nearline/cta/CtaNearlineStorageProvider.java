@@ -15,7 +15,7 @@ public class CtaNearlineStorageProvider implements NearlineStorageProvider {
 
     private final static Logger LOGGER = LoggerFactory.getLogger(CtaNearlineStorageProvider.class);
 
-    private final static String VERSION;
+    public final static String VERSION;
 
     static {
         /*

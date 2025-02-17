@@ -1,14 +1,10 @@
 package org.dcache.nearline.cta;
 
 import static org.mockito.Mockito.spy;
-import ch.cern.cta.rpc.ArchiveResponse;
-import ch.cern.cta.rpc.CreateResponse;
 import ch.cern.cta.rpc.CtaRpcGrpc;
-import ch.cern.cta.rpc.RetrieveResponse;
-import ch.cern.cta.rpc.SchedulerRequest;
+import ch.cern.cta.rpc.Request;
+import ch.cern.cta.rpc.Response;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import com.google.protobuf.Empty;
-import cta.admin.CtaAdmin.Version;
 import io.grpc.Server;
 import io.grpc.Status;
 import io.grpc.StatusException;
@@ -79,66 +75,46 @@ public class DummyCta {
     private class CtaSvc extends CtaRpcGrpc.CtaRpcImplBase {
 
         @Override
-        public void version(Empty request, StreamObserver<Version> responseObserver) {
+        public void create(Request request,
+              StreamObserver<Response> responseObserver) {
 
             if (drop) {
                 return;
             }
 
-            if (!fail) {
-                responseObserver.onNext(
-                      Version.newBuilder()
-                            .setCtaVersion("embedded dummy x-x-x")
-                            .setXrootdSsiProtobufInterfaceVersion("testing")
-                            .build()
-                );
-                responseObserver.onCompleted();
-            } else {
-                responseObserver.onError(new StatusException(Status.INTERNAL));
-            }
-        }
-
-        @Override
-        public void create(SchedulerRequest request,
-              StreamObserver<CreateResponse> responseObserver) {
-
-            if (drop) {
-                return;
-            }
-
-            if (request.getMd().getWf().getInstance().getName().isEmpty()) {
+            if (request.getNotification().getWf().getInstance().getName().isEmpty()) {
                 responseObserver.onError(new StatusException(Status.INVALID_ARGUMENT));
                 return;
             }
 
-            if (request.getMd().getCli().getUser().getUsername().isEmpty()) {
+            if (request.getNotification().getCli().getUser().getUsername().isEmpty()) {
                 responseObserver.onError(new StatusException(Status.INVALID_ARGUMENT));
                 return;
             }
 
-            if (request.getMd().getCli().getUser().getGroupname().isEmpty()) {
+            if (request.getNotification().getCli().getUser().getGroupname().isEmpty()) {
                 responseObserver.onError(new StatusException(Status.INVALID_ARGUMENT));
                 return;
             }
 
-            if (request.getMd().getFile().getOwner().getUid() == 0) {
+            if (request.getNotification().getFile().getOwner().getUid() == 0) {
                 responseObserver.onError(new StatusException(Status.INVALID_ARGUMENT));
                 return;
             }
 
-            if (request.getMd().getFile().getOwner().getGid() == 0) {
+            if (request.getNotification().getFile().getOwner().getGid() == 0) {
                 responseObserver.onError(new StatusException(Status.INVALID_ARGUMENT));
                 return;
             }
 
-            if (request.getMd().getFile().getLpath().isEmpty()) {
+            if (request.getNotification().getFile().getLpath().isEmpty()) {
                 responseObserver.onError(new StatusException(Status.INVALID_ARGUMENT));
                 return;
             }
 
             if (!fail) {
-                var response = CreateResponse.newBuilder()
-                      .setArchiveFileId(ThreadLocalRandom.current().nextLong())
+                var response = Response.newBuilder()
+                      .setArchiveFileId(Long.toString(ThreadLocalRandom.current().nextLong()))
                       .build();
 
                 responseObserver.onNext(response);
@@ -150,51 +126,51 @@ public class DummyCta {
         }
 
         @Override
-        public void archive(SchedulerRequest request,
-              StreamObserver<ArchiveResponse> responseObserver) {
+        public void archive(Request request,
+              StreamObserver<Response> responseObserver) {
 
             if (drop) {
                 return;
             }
 
-            if (request.getMd().getWf().getInstance().getName().isEmpty()) {
+            if (request.getNotification().getWf().getInstance().getName().isEmpty()) {
                 responseObserver.onError(new StatusException(Status.INVALID_ARGUMENT));
                 return;
             }
 
-            if (request.getMd().getCli().getUser().getUsername().isEmpty()) {
+            if (request.getNotification().getCli().getUser().getUsername().isEmpty()) {
                 responseObserver.onError(new StatusException(Status.INVALID_ARGUMENT));
                 return;
             }
 
-            if (request.getMd().getCli().getUser().getGroupname().isEmpty()) {
+            if (request.getNotification().getCli().getUser().getGroupname().isEmpty()) {
                 responseObserver.onError(new StatusException(Status.INVALID_ARGUMENT));
                 return;
             }
 
-            if (request.getMd().getFile().getOwner().getUid() == 0) {
+            if (request.getNotification().getFile().getOwner().getUid() == 0) {
                 responseObserver.onError(new StatusException(Status.INVALID_ARGUMENT));
                 return;
             }
 
-            if (request.getMd().getFile().getOwner().getGid() == 0) {
+            if (request.getNotification().getFile().getOwner().getGid() == 0) {
                 responseObserver.onError(new StatusException(Status.INVALID_ARGUMENT));
                 return;
             }
 
-            if (request.getMd().getFile().getLpath().isEmpty()) {
+            if (request.getNotification().getFile().getLpath().isEmpty()) {
                 responseObserver.onError(new StatusException(Status.INVALID_ARGUMENT));
                 return;
             }
 
-            if (request.getMd().getFile().getArchiveFileId() == 0L) {
+            if (request.getNotification().getFile().getArchiveFileId() == 0L) {
                 responseObserver.onError(new StatusException(Status.INVALID_ARGUMENT));
                 return;
             }
 
             if (!fail) {
-                var response = ArchiveResponse.newBuilder()
-                      .setObjectstoreId("ArchiveRequest-" + ThreadLocalRandom.current().nextInt())
+                var response = Response.newBuilder()
+                      .setRequestObjectstoreId("ArchiveRequest-" + ThreadLocalRandom.current().nextInt())
                       .build();
 
                 responseObserver.onNext(response);
@@ -205,51 +181,51 @@ public class DummyCta {
         }
 
         @Override
-        public void retrieve(SchedulerRequest request,
-              StreamObserver<RetrieveResponse> responseObserver) {
+        public void retrieve(Request request,
+              StreamObserver<Response> responseObserver) {
 
             if (drop) {
                 return;
             }
 
-            if (request.getMd().getWf().getInstance().getName().isEmpty()) {
+            if (request.getNotification().getWf().getInstance().getName().isEmpty()) {
                 responseObserver.onError(new StatusException(Status.INVALID_ARGUMENT));
                 return;
             }
 
-            if (request.getMd().getCli().getUser().getUsername().isEmpty()) {
+            if (request.getNotification().getCli().getUser().getUsername().isEmpty()) {
                 responseObserver.onError(new StatusException(Status.INVALID_ARGUMENT));
                 return;
             }
 
-            if (request.getMd().getCli().getUser().getGroupname().isEmpty()) {
+            if (request.getNotification().getCli().getUser().getGroupname().isEmpty()) {
                 responseObserver.onError(new StatusException(Status.INVALID_ARGUMENT));
                 return;
             }
 
-            if (request.getMd().getFile().getOwner().getUid() == 0) {
+            if (request.getNotification().getFile().getOwner().getUid() == 0) {
                 responseObserver.onError(new StatusException(Status.INVALID_ARGUMENT));
                 return;
             }
 
-            if (request.getMd().getFile().getOwner().getGid() == 0) {
+            if (request.getNotification().getFile().getOwner().getGid() == 0) {
                 responseObserver.onError(new StatusException(Status.INVALID_ARGUMENT));
                 return;
             }
 
-            if (request.getMd().getFile().getLpath().isEmpty()) {
+            if (request.getNotification().getFile().getLpath().isEmpty()) {
                 responseObserver.onError(new StatusException(Status.INVALID_ARGUMENT));
                 return;
             }
 
-            if (request.getMd().getFile().getArchiveFileId() == 0L) {
+            if (request.getNotification().getFile().getArchiveFileId() == 0L) {
                 responseObserver.onError(new StatusException(Status.INVALID_ARGUMENT));
                 return;
             }
 
             if (!fail) {
-                var response = RetrieveResponse.newBuilder()
-                      .setObjectstoreId("RetrieveRequest-" + ThreadLocalRandom.current().nextInt())
+                var response = Response.newBuilder()
+                      .setRequestObjectstoreId("RetrieveRequest-" + ThreadLocalRandom.current().nextInt())
                       .build();
 
                 responseObserver.onNext(response);
@@ -260,35 +236,35 @@ public class DummyCta {
         }
 
         @Override
-        public void cancelRetrieve(SchedulerRequest request,
-              StreamObserver<Empty> responseObserver) {
+        public void cancelRetrieve(Request request,
+              StreamObserver<Response> responseObserver) {
 
             if (drop) {
                 return;
             }
 
-            if (request.getMd().getWf().getInstance().getName().isEmpty()) {
+            if (request.getNotification().getWf().getInstance().getName().isEmpty()) {
                 responseObserver.onError(new StatusException(Status.INVALID_ARGUMENT));
                 return;
             }
 
-            if (request.getMd().getCli().getUser().getUsername().isEmpty()) {
+            if (request.getNotification().getCli().getUser().getUsername().isEmpty()) {
                 responseObserver.onError(new StatusException(Status.INVALID_ARGUMENT));
                 return;
             }
 
-            if (request.getMd().getCli().getUser().getGroupname().isEmpty()) {
+            if (request.getNotification().getCli().getUser().getGroupname().isEmpty()) {
                 responseObserver.onError(new StatusException(Status.INVALID_ARGUMENT));
                 return;
             }
 
-            if (request.getMd().getFile().getArchiveFileId() == 0L) {
+            if (request.getNotification().getFile().getArchiveFileId() == 0L) {
                 responseObserver.onError(new StatusException(Status.INVALID_ARGUMENT));
                 return;
             }
 
             if (!fail) {
-                var response = Empty.newBuilder()
+                var response = Response.newBuilder()
                       .build();
                 responseObserver.onNext(response);
                 responseObserver.onCompleted();
@@ -298,49 +274,49 @@ public class DummyCta {
         }
 
         @Override
-        public void delete(SchedulerRequest request, StreamObserver<Empty> responseObserver) {
+        public void delete(Request request, StreamObserver<Response> responseObserver) {
 
             if (drop) {
                 return;
             }
 
-            if (request.getMd().getWf().getInstance().getName().isEmpty()) {
+            if (request.getNotification().getWf().getInstance().getName().isEmpty()) {
                 responseObserver.onError(new StatusException(Status.INVALID_ARGUMENT));
                 return;
             }
 
-            if (request.getMd().getCli().getUser().getUsername().isEmpty()) {
+            if (request.getNotification().getCli().getUser().getUsername().isEmpty()) {
                 responseObserver.onError(new StatusException(Status.INVALID_ARGUMENT));
                 return;
             }
 
-            if (request.getMd().getCli().getUser().getGroupname().isEmpty()) {
+            if (request.getNotification().getCli().getUser().getGroupname().isEmpty()) {
                 responseObserver.onError(new StatusException(Status.INVALID_ARGUMENT));
                 return;
             }
 
-            if (request.getMd().getFile().getOwner().getUid() == 0) {
+            if (request.getNotification().getFile().getOwner().getUid() == 0) {
                 responseObserver.onError(new StatusException(Status.INVALID_ARGUMENT));
                 return;
             }
 
-            if (request.getMd().getFile().getOwner().getGid() == 0) {
+            if (request.getNotification().getFile().getOwner().getGid() == 0) {
                 responseObserver.onError(new StatusException(Status.INVALID_ARGUMENT));
                 return;
             }
 
-            if (request.getMd().getFile().getLpath().isEmpty()) {
+            if (request.getNotification().getFile().getLpath().isEmpty()) {
                 responseObserver.onError(new StatusException(Status.INVALID_ARGUMENT));
                 return;
             }
 
-            if (request.getMd().getFile().getArchiveFileId() == 0L) {
+            if (request.getNotification().getFile().getArchiveFileId() == 0L) {
                 responseObserver.onError(new StatusException(Status.INVALID_ARGUMENT));
                 return;
             }
 
             if (!fail) {
-                var response = Empty.newBuilder()
+                var response = Response.newBuilder()
                       .build();
                 responseObserver.onNext(response);
                 responseObserver.onCompleted();

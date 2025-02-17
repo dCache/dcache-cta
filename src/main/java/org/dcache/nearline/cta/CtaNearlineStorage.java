@@ -3,12 +3,10 @@ package org.dcache.nearline.cta;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import ch.cern.cta.rpc.CtaRpcGrpc;
-import ch.cern.cta.rpc.SchedulerRequest;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Throwables;
 import com.google.common.net.HostAndPort;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import com.google.protobuf.Empty;
 import diskCacheV111.util.CacheException;
 import io.grpc.ChannelCredentials;
 import io.grpc.ConnectivityState;
@@ -178,14 +176,14 @@ public class CtaNearlineStorage implements NearlineStorage {
                     continue;
                 }
 
-                var createRequest = ctaRequestFactory.valueOf(fr.getFileAttributes());
+                var createRequest = ctaRequestFactory.getCreateRequest(fr.getFileAttributes());
                 var createResponse =  cta.withDeadline(getRequestDeadline()).create(createRequest);
                 LOGGER.info("{}: Create new archive id {} for {}",  fr.getId(),
                         createResponse.getArchiveFileId(),
                         fr.getFileAttributes().getPnfsId()
                 );
 
-                submitFlush(fr, createResponse.getArchiveFileId());
+                submitFlush(fr, Long.parseLong(createResponse.getArchiveFileId()));
 
             } catch (Exception e) {
                 Throwable t = Throwables.getRootCause(e);
@@ -231,19 +229,18 @@ public class CtaNearlineStorage implements NearlineStorage {
             }
         };
 
-        var ar = ctaRequestFactory.valueOf(r, ctaArchiveId);
+        var ar = ctaRequestFactory.getStoreRequest(r, ctaArchiveId);
         var response = cta.withDeadline(getRequestDeadline()).archive(ar);
 
         LOGGER.info("{} : {} : archive id {}, request: {}",
                 r.getId(),
                 r.getFileAttributes().getPnfsId(),
                 ctaArchiveId,
-                response.getObjectstoreId()
+                response.getRequestObjectstoreId()
         );
 
-        var cancelRequest = SchedulerRequest.newBuilder(ar)
-                .setObjectstoreId(response.getObjectstoreId())
-                .build();
+
+        var cancelRequest = ctaRequestFactory.getAbortStoreRequest(ar, response);
 
         pendingRequests.put(id, new PendingRequest(r) {
                     @Override
@@ -305,17 +302,15 @@ public class CtaNearlineStorage implements NearlineStorage {
                     continue;
                 }
 
-                var rr = ctaRequestFactory.valueOf(r);
+                var rr = ctaRequestFactory.getStageRequest(r);
                 var response = cta.withDeadline(getRequestDeadline()).retrieve(rr);
                 LOGGER.info("{} : {} : request: {}",
                         r.getId(),
                         r.getFileAttributes().getPnfsId(),
-                        response.getObjectstoreId()
+                        response.getRequestObjectstoreId()
                 );
 
-                var cancelRequest = SchedulerRequest.newBuilder(rr)
-                        .setObjectstoreId(response.getObjectstoreId())
-                        .build();
+                var cancelRequest = ctaRequestFactory.getAbortStageRequest(rr, response);
                 pendingRequests.put(id, new PendingRequest(r) {
                             @Override
                             public void cancel() {
@@ -356,7 +351,7 @@ public class CtaNearlineStorage implements NearlineStorage {
             }
 
             try {
-                var deleteRequest = ctaRequestFactory.valueOf(r);
+                var deleteRequest = ctaRequestFactory.getRemoveRequest(r);
                 var result = cta.withDeadline(getRequestDeadline()).delete(deleteRequest);
                 LOGGER.info("Delete request {} submitted {}",
                         r.getId(),
@@ -477,12 +472,7 @@ public class CtaNearlineStorage implements NearlineStorage {
 
         cta = CtaRpcGrpc.newBlockingStub(channel);
         channel.notifyWhenStateChanged(ConnectivityState.CONNECTING, () -> {
-                    try {
-                        var version = cta.withDeadline(getRequestDeadline()).version(Empty.newBuilder().build());
-                        LOGGER.info("Connected to CTA version {}", version.getCtaVersion());
-                    } catch (Exception e) {
-                        LOGGER.error("Failed to get CTA version {}", e.getMessage());
-                    }
+                    LOGGER.info("Connected to CTA frontend");
                 }
         );
         ctaRequestFactory = new RequestsFactory(instanceName, ctaUser, ctaGroup, dataMover);

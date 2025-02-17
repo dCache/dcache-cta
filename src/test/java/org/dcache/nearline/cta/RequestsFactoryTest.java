@@ -54,22 +54,22 @@ public class RequestsFactoryTest {
         var flushRequest = mock(FlushRequest.class);
         given(flushRequest.getFileAttributes()).willReturn(fileAttrs);
 
-        var achriveRequest = rf.valueOf(flushRequest, 123);
+        var achriveRequest = rf.getStoreRequest(flushRequest, 123);
 
         assertEquals(fileAttrs.getStorageClass() + "@" + fileAttrs.getHsm(),
-              achriveRequest.getMd().getFile().getStorageClass());
-        assertEquals(Type.ADLER32, achriveRequest.getMd().getFile().getCsb().getCs(0).getType());
+              achriveRequest.getNotification().getFile().getStorageClass());
+        assertEquals(Type.ADLER32, achriveRequest.getNotification().getFile().getCsb().getCs(0).getType());
         assertEquals(ByteString.copyFrom(csumCta),
-              achriveRequest.getMd().getFile().getCsb().getCs(0).getValue());
-        assertEquals(fileAttrs.getSize(), achriveRequest.getMd().getFile().getSize());
-        assertEquals(fileAttrs.getPnfsId().toString(), achriveRequest.getMd().getFile().getDiskFileId());
+              achriveRequest.getNotification().getFile().getCsb().getCs(0).getValue());
+        assertEquals(fileAttrs.getSize(), achriveRequest.getNotification().getFile().getSize());
+        assertEquals(fileAttrs.getPnfsId().toString(), achriveRequest.getNotification().getFile().getDiskFileId());
 
-        assertFalse(achriveRequest.getMd().getWf().getInstance().getName().isEmpty());
-        assertFalse(achriveRequest.getMd().getCli().getUser().getUsername().isEmpty());
-        assertFalse(achriveRequest.getMd().getCli().getUser().getGroupname().isEmpty());
-        assertFalse(achriveRequest.getMd().getFile().getOwner().getUid() == 0);
-        assertFalse(achriveRequest.getMd().getFile().getOwner().getGid() == 0);
-        assertFalse(achriveRequest.getMd().getFile().getLpath().isEmpty());
+        assertFalse(achriveRequest.getNotification().getWf().getInstance().getName().isEmpty());
+        assertFalse(achriveRequest.getNotification().getCli().getUser().getUsername().isEmpty());
+        assertFalse(achriveRequest.getNotification().getCli().getUser().getGroupname().isEmpty());
+        assertFalse(achriveRequest.getNotification().getFile().getOwner().getUid() == 0);
+        assertFalse(achriveRequest.getNotification().getFile().getOwner().getGid() == 0);
+        assertFalse(achriveRequest.getNotification().getFile().getLpath().isEmpty());
     }
 
     @Test
@@ -84,18 +84,18 @@ public class RequestsFactoryTest {
         var removeRequest = mock(RemoveRequest.class);
         given(removeRequest.getUri()).willReturn(uri);
 
-        var deleteRequest = rf.valueOf(removeRequest);
+        var deleteRequest = rf.getRemoveRequest(removeRequest);
 
-        assertEquals(pnfsid, deleteRequest.getMd().getFile().getDiskFileId());
-        assertEquals(archiveId, deleteRequest.getMd().getFile().getArchiveFileId());
+        assertEquals(pnfsid, deleteRequest.getNotification().getFile().getDiskFileId());
+        assertEquals(archiveId, deleteRequest.getNotification().getFile().getArchiveFileId());
 
-        assertFalse(deleteRequest.getMd().getWf().getInstance().getName().isEmpty());
-        assertFalse(deleteRequest.getMd().getCli().getUser().getUsername().isEmpty());
-        assertFalse(deleteRequest.getMd().getCli().getUser().getGroupname().isEmpty());
-        assertFalse(deleteRequest.getMd().getFile().getOwner().getUid() == 0);
-        assertFalse(deleteRequest.getMd().getFile().getOwner().getGid() == 0);
-        assertFalse(deleteRequest.getMd().getFile().getLpath().isEmpty());
-        assertFalse(deleteRequest.getMd().getFile().getArchiveFileId() == 0L);
+        assertFalse(deleteRequest.getNotification().getWf().getInstance().getName().isEmpty());
+        assertFalse(deleteRequest.getNotification().getCli().getUser().getUsername().isEmpty());
+        assertFalse(deleteRequest.getNotification().getCli().getUser().getGroupname().isEmpty());
+        assertFalse(deleteRequest.getNotification().getFile().getOwner().getUid() == 0);
+        assertFalse(deleteRequest.getNotification().getFile().getOwner().getGid() == 0);
+        assertFalse(deleteRequest.getNotification().getFile().getLpath().isEmpty());
+        assertFalse(deleteRequest.getNotification().getFile().getArchiveFileId() == 0L);
 
     }
 
@@ -123,21 +123,21 @@ public class RequestsFactoryTest {
         var flushRequest = mock(StageRequest.class);
         given(flushRequest.getFileAttributes()).willReturn(fileAttrs);
 
-        var retrieveRequest = rf.valueOf(flushRequest);
+        var retrieveRequest = rf.getStageRequest(flushRequest);
 
         assertEquals(fileAttrs.getStorageClass() + "@" + fileAttrs.getHsm(),
-              retrieveRequest.getMd().getFile().getStorageClass());
-        assertEquals(fileAttrs.getSize(), retrieveRequest.getMd().getFile().getSize());
-        assertEquals(fileAttrs.getPnfsId().toString(), retrieveRequest.getMd().getFile().getDiskFileId());
-        assertEquals(archiveId, retrieveRequest.getMd().getFile().getArchiveFileId());
+              retrieveRequest.getNotification().getFile().getStorageClass());
+        assertEquals(fileAttrs.getSize(), retrieveRequest.getNotification().getFile().getSize());
+        assertEquals(fileAttrs.getPnfsId().toString(), retrieveRequest.getNotification().getFile().getDiskFileId());
+        assertEquals(archiveId, retrieveRequest.getNotification().getFile().getArchiveFileId());
 
-        assertFalse(retrieveRequest.getMd().getWf().getInstance().getName().isEmpty());
-        assertFalse(retrieveRequest.getMd().getCli().getUser().getUsername().isEmpty());
-        assertFalse(retrieveRequest.getMd().getCli().getUser().getGroupname().isEmpty());
-        assertFalse(retrieveRequest.getMd().getFile().getOwner().getUid() == 0);
-        assertFalse(retrieveRequest.getMd().getFile().getOwner().getGid() == 0);
-        assertFalse(retrieveRequest.getMd().getFile().getLpath().isEmpty());
-        assertFalse(retrieveRequest.getMd().getFile().getArchiveFileId() == 0L);
+        assertFalse(retrieveRequest.getNotification().getWf().getInstance().getName().isEmpty());
+        assertFalse(retrieveRequest.getNotification().getCli().getUser().getUsername().isEmpty());
+        assertFalse(retrieveRequest.getNotification().getCli().getUser().getGroupname().isEmpty());
+        assertFalse(retrieveRequest.getNotification().getFile().getOwner().getUid() == 0);
+        assertFalse(retrieveRequest.getNotification().getFile().getOwner().getGid() == 0);
+        assertFalse(retrieveRequest.getNotification().getFile().getLpath().isEmpty());
+        assertFalse(retrieveRequest.getNotification().getFile().getArchiveFileId() == 0L);
     }
 
 }

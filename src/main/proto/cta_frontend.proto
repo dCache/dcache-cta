@@ -15,6 +15,12 @@
 //                 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 syntax = "proto3";
+
+// The following options are used by dCache (not used by EOS or CTA command-line tools)
+option java_multiple_files = true;
+option java_package = "ch.cern.cta.rpc";
+option optimize_for = CODE_SIZE;
+
 package cta.xrd;
 
 import "cta_admin.proto";
@@ -51,6 +57,12 @@ message Response {
   map<string, string> xattr           = 2;      //< xattribute map
   string message_txt                  = 3;      //< Optional response message text
   cta.admin.HeaderType show_header    = 4;      //< Type of header to display (for stream responses)
+  string archive_file_id              = 5;      //< xattribute: archive_file_id
+  string storage_class                = 6;      //< xattribute: sys.archive.storage_class
+  string request_objectstore_id       = 999;    //< xattribute: sys.cta.objectstore.id / sys.cta.archive.objectstore.id
+                                                //<for Retrieve / Archive requests respectively
+                                                //<This field is a temporary hack to allow us to retrieve a Request from objectstore given that
+                                                //<there are no indexes. It should be deprecated once the PostgreSQL scheduler is introduced
 }
 
 
@@ -100,7 +112,12 @@ message Data {
   }
 }
 
-
+message StreamResponse {
+  oneof contents {
+      cta.xrd.Response header = 1;
+      cta.xrd.Data data = 2;
+  }
+}
 
 //
 // Alert Messages
@@ -113,4 +130,44 @@ message Alert {
   }
   Audience audience                   = 1;    //< The intended audience of the message
   string message_txt                  = 2;    //< Text of the message
+}
+
+// Negotiation
+message KerberosAuthenticationRequest {
+  bytes challenge = 1;                  //< GSS challenge
+  string service_principal_name = 2;    //< KRB5 service principal name
+};
+
+message KerberosAuthenticationResponse {
+  bytes challenge = 1;                  //< GSS challenge
+  bool is_complete = 2;
+  bytes token = 3;                      //< KRB5 token
+  string error_msg = 4;
+};
+
+/*
+* gRPC request-response pairs
+*/
+
+service CtaRpc {
+  // Generic request to give a migration path from EOS
+  rpc GenericRequest (cta.xrd.Request) returns (cta.xrd.Response) {} // what does this correspond to?
+
+  // Specific request types
+  rpc Create (cta.xrd.Request) returns (cta.xrd.Response) {} // <-> processCREATE
+  rpc Archive (cta.xrd.Request) returns (cta.xrd.Response) {} // <-> processCLOSEW
+  rpc Retrieve (cta.xrd.Request) returns (cta.xrd.Response) {} // <-> processPREPARE
+  rpc Delete (cta.xrd.Request) returns (cta.xrd.Response) {} // <-> processDELETE
+  rpc CancelRetrieve (cta.xrd.Request) returns (cta.xrd.Response) {} // processABORT_PREPARE
+
+  // Admin commands
+  rpc Admin (cta.xrd.Request) returns (cta.xrd.Response) {}
+}
+
+service CtaRpcStream {
+  rpc TapeLs (cta.xrd.Request) returns (stream StreamResponse) {}
+}
+
+service Negotiation {
+  rpc Negotiate (stream KerberosAuthenticationRequest) returns (stream KerberosAuthenticationResponse) {}
 }
