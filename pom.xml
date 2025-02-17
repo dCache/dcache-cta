@@ -213,11 +213,6 @@
                     <encoding>UTF-8</encoding>
                     <release>${java.version}</release>
                     <showDeprecation>true</showDeprecation>
-                    <excludes>
-                        <exclude>
-                            **/org/dcache/nearline/cta/CtaCli.java
-                        </exclude>
-                    </excludes>
                 </configuration>
             </plugin>
 
@@ -314,6 +309,26 @@
     </build>
 
     <profiles>
+        <profile>
+            <id>no-cli</id>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-compiler-plugin</artifactId>
+                        <configuration>
+                            <excludes>
+                                <exclude>**/org/dcache/nearline/cta/CtaCli.java</exclude>
+                            </excludes>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
         <profile>
             <id>cli</id>
             <activation>
