@@ -1,6 +1,7 @@
 package org.dcache.nearline.cta;
 
-import ch.cern.cta.rpc.SchedulerRequest;
+import ch.cern.cta.rpc.Request;
+import ch.cern.cta.rpc.Response;
 import com.google.common.io.BaseEncoding;
 import com.google.protobuf.ByteString;
 import cta.common.CtaCommon;
@@ -13,6 +14,7 @@ import cta.eos.CtaEos.Transport;
 import cta.eos.CtaEos.Workflow;
 import cta.eos.CtaEos.Workflow.EventType;
 import java.io.File;
+import java.net.InetAddress;
 import java.time.Instant;
 import java.util.Objects;
 import org.dcache.namespace.FileAttribute;
@@ -58,16 +60,23 @@ public class RequestsFactory {
               .build();
 
         client = CtaEos.Client.newBuilder()
-              .setUser(CtaCommon.RequesterId.newBuilder()
+            .setUser(CtaCommon.RequesterId.newBuilder()
                     .setUsername(user)
                     .setGroupname(group)
                     .build())
-              .build();
+            .setSec(CtaCommon.Security.newBuilder()
+                    .setName(service)
+                    .setProt("none")
+                    .setApp("dCache-CTA-" + CtaNearlineStorageProvider.VERSION)
+                    .setHost(InetAddress.getLoopbackAddress().getCanonicalHostName())
+                    .build()
+            )
+            .build();
 
         this.transportProvider = transportProvider;
     }
 
-    public SchedulerRequest valueOf(FileAttributes dcacheFileAttrs) {
+    public Request getCreateRequest(FileAttributes dcacheFileAttrs) {
 
         var id = dcacheFileAttrs.getPnfsId().toString();
         var md = Metadata.newBuilder()
@@ -95,13 +104,13 @@ public class RequestsFactory {
                     .build())
               .build();
 
-        return SchedulerRequest.newBuilder()
-              .setMd(notification)
+        return Request.newBuilder()
+              .setNotification(notification)
               .build();
     }
 
 
-    public SchedulerRequest valueOf(FlushRequest request, long archiveId) {
+    public Request getStoreRequest(FlushRequest request, long archiveId) {
 
         FileAttributes dcacheFileAttrs = request.getFileAttributes();
 
@@ -153,22 +162,68 @@ public class RequestsFactory {
               .setLpath("/" + id)
               .build();
 
+        // CTA ignores URL provided in the transport, so we need to create a new instance
+        var customInstance = CtaCommon.Service.newBuilder(instance)
+                .setUrl(transport.getDstUrl())
+                .build();
+
         var notification = Notification.newBuilder()
               .setCli(client)
               .setTransport(transport)
               .setFile(md)
               .setWf(Workflow.newBuilder()
-                    .setInstance(instance)
+                    .setInstance(customInstance)
                     .setEvent(EventType.CLOSEW)
                     .build())
               .build();
 
-        return SchedulerRequest.newBuilder()
-              .setMd(notification)
+        return Request.newBuilder()
+              .setNotification(notification)
               .build();
     }
 
-    public SchedulerRequest valueOf(RemoveRequest request) {
+    public Request getAbortStoreRequest(Request request, Response response) {
+
+        // we expect uri in form: cta://cta/<pnfsid>?archiveid=xxx
+        var notification = Notification.newBuilder()
+                .setCli(client)
+                .setFile(Metadata.newBuilder(request.getNotification().getFile())
+                        .putXattr(CtaConstants.ATTR_OBJECTSTOE_ID, response.getRequestObjectstoreId())
+                        .build()
+                )
+                .setWf(Workflow.newBuilder()
+                        .setInstance(instance)
+                        .setEvent(EventType.DELETE)
+                        .build())
+                .build();
+
+        return Request.newBuilder()
+                .setNotification(notification)
+                .build();
+    }
+
+    public Request getAbortStageRequest(Request request, Response response) {
+
+        // we expect uri in form: cta://cta/<pnfsid>?archiveid=xxx
+        var notification = Notification.newBuilder()
+                .setCli(client)
+                .setFile(Metadata.newBuilder(request.getNotification().getFile())
+                        .putXattr(CtaConstants.ATTR_OBJECTSTOE_ID, response.getRequestObjectstoreId())
+                        .build()
+                )
+                .setWf(Workflow.newBuilder()
+                        .setInstance(instance)
+                        .setEvent(EventType.ABORT_PREPARE)
+                        .build())
+                .build();
+
+        return Request.newBuilder()
+                .setNotification(notification)
+                .build();
+    }
+
+
+    public Request getRemoveRequest(RemoveRequest request) {
 
         // we expect uri in form: cta://cta/<pnfsid>?archiveid=xxx
 
@@ -197,12 +252,12 @@ public class RequestsFactory {
                     .build())
               .build();
 
-        return SchedulerRequest.newBuilder()
-              .setMd(notification)
+        return Request.newBuilder()
+              .setNotification(notification)
               .build();
     }
 
-    public SchedulerRequest valueOf(StageRequest request) {
+    public Request getStageRequest(StageRequest request) {
 
         FileAttributes dcacheFileAttrs = request.getFileAttributes();
 
@@ -238,8 +293,8 @@ public class RequestsFactory {
                     .build())
               .build();
 
-        return SchedulerRequest.newBuilder()
-              .setMd(notification)
+        return Request.newBuilder()
+              .setNotification(notification)
               .build();
     }
 }

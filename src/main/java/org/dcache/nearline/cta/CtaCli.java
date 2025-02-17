@@ -8,9 +8,10 @@ import static org.dcache.nearline.cta.CtaNearlineStorage.CTA_TLS;
 import static org.dcache.nearline.cta.CtaNearlineStorage.CTA_USER;
 import static org.dcache.nearline.cta.CtaNearlineStorage.IO_PORT;
 import ch.cern.cta.rpc.CtaRpcGrpc;
+import ch.cern.cta.rpc.Request;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
-import com.google.protobuf.Empty;
+import cta.admin.CtaAdmin;
 import diskCacheV111.util.Adler32;
 import io.grpc.InsecureChannelCredentials;
 import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder;
@@ -73,8 +74,13 @@ public class CtaCli implements Runnable {
             try {
                 var cta = CtaRpcGrpc.newBlockingStub(channel);
                 try {
-                    var res = cta.version(Empty.newBuilder().build());
-                    System.out.println("Remote CTA version: " + res.getCtaVersion());
+                    var versionRequest = Request.newBuilder()
+                            .setAdmincmd(CtaAdmin.AdminCmd.newBuilder()
+                                    .setClientVersion(CtaNearlineStorageProvider.VERSION)
+                                    .build()
+                            ).build();
+                    var res = cta.admin(versionRequest);
+                    System.out.println("Remote CTA version: " + res.getMessageTxt() + " " + res.getXattr());
                     System.exit(0);
                 } catch (Exception e) {
                     e.printStackTrace();
