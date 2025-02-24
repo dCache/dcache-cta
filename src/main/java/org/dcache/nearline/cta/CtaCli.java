@@ -6,6 +6,7 @@ import static org.dcache.nearline.cta.CtaNearlineStorage.CTA_INSTANCE;
 import static org.dcache.nearline.cta.CtaNearlineStorage.CTA_REQUEST_TIMEOUT;
 import static org.dcache.nearline.cta.CtaNearlineStorage.CTA_TLS;
 import static org.dcache.nearline.cta.CtaNearlineStorage.CTA_USER;
+import static org.dcache.nearline.cta.CtaNearlineStorage.IO_ENDPOINT;
 import static org.dcache.nearline.cta.CtaNearlineStorage.IO_PORT;
 import ch.cern.cta.rpc.CtaRpcGrpc;
 import ch.cern.cta.rpc.Request;
@@ -26,6 +27,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.URI;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
@@ -104,6 +106,8 @@ public class CtaCli implements Runnable {
         private final CtaNearlineStorage driver = new CtaNearlineStorage("aType", "aName");
         private final CountDownLatch waitToCpmplete = new CountDownLatch(1);
 
+        @CommandLine.Option(names = {"-l", "--local-endpoint"}, paramLabel = "local endpoint", description = "Local endpoint to bind")
+        String localEndpoint;
 
         @CommandLine.Parameters(index = "0", description = "cta frontend host")
         String host;
@@ -129,6 +133,10 @@ public class CtaCli implements Runnable {
         @Override
         public Integer call() throws IOException, InterruptedException {
 
+            if (localEndpoint == null || localEndpoint.isEmpty()) {
+                localEndpoint = InetAddress.getLocalHost().getCanonicalHostName();
+            }
+
             var drvConfig = Map.of(CTA_USER,
                     user, CTA_GROUP,
                     group, CTA_INSTANCE,
@@ -136,6 +144,7 @@ public class CtaCli implements Runnable {
                     host + ":" + port,
                     IO_PORT, "0",
                     CTA_TLS, "false",
+                    IO_ENDPOINT, localEndpoint,
                     CTA_REQUEST_TIMEOUT, "3");
 
             driver.configure(drvConfig);
