@@ -6,11 +6,24 @@ This is nearline storage plugin for dCache.
 
 [![DOI](https://zenodo.org/badge/415029713.svg)](https://zenodo.org/badge/latestdoi/415029713)
 
+## Building from source
+
+### Tar
+
 To compile the plugin, run:
 
     mvn package
 
 This produces a tarball in the `target` directory containing the plugin.
+
+### RPM
+
+```
+mvn clean package
+mkdir -p rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
+cp target/dcache-cta*.tar.gz rpmbuild/SOURCES
+rpmbuild -ba --define "_topdir `pwd`/rpmbuild" target/SPECS/dcache-cta.spec
+```
 
 ## Using the plugin with dCache
 
@@ -94,7 +107,17 @@ queue define class -expire=0 -pending=0 -total=0 -open <hsmType> *
 | cta-frontend-timeout | How log dCache waits in seconds for CTA frontend to reply      |       no | 30         |
 | io-endpoint          | The hostname or IP offered by dCache for IO by CTA             |       no | `hostname` |
 | io-port              | The TCP port offered by dCache for IO by CTA                   |       no | -          |
-| restore-success-on-close | **obsolete**                                                   |        - | -          |
+| restore-success-on-close | **obsolete**                                               |        - | -          |
+
+## Compatibility with CTA
+
+The driver is compatible with all dCache versions staring 7.2. The compatibility CTA versions are:
+
+| CTA Version              | dcache-cta version |
+|:-------------------------|:-------------------|
+| 5.7.12 - 5.10.xx         | 0.6.0 - 0.14.0     |
+| 5.11.0 - xxx             | 0.15.0             |
+
 
 ## Acknowledgements
 
