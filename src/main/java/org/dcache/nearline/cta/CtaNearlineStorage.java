@@ -4,6 +4,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import ch.cern.cta.rpc.CtaRpcGrpc;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Splitter;
 import com.google.common.base.Throwables;
 import com.google.common.net.HostAndPort;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -106,7 +107,7 @@ public class CtaNearlineStorage implements NearlineStorage {
     /**
      * CTA frontend.
      */
-    private HostAndPort ctaEndpoint;
+    private InetSocketAddress[] ctaEndpoint;
 
     /**
      * Requests submitted to CTA.
@@ -410,8 +411,16 @@ public class CtaNearlineStorage implements NearlineStorage {
         checkArgument(user != null, "CTA user is not set.");
         checkArgument(group != null, "CTA group is not set.");
 
-        ctaEndpoint = HostAndPort.fromString(endpoint);
-        checkArgument(ctaEndpoint.hasPort(), "Port is not provided for CTA frontend");
+        // handle string like host1:port1,host2:port2,host3:port3
+        ctaEndpoint = Splitter.on(',')
+                .splitToList(endpoint)
+                .stream()
+                .map(HostAndPort::fromString)
+                .map(h -> {
+                    checkArgument(h.hasPort(), "Port is not provided for CTA frontend");
+                    return new InetSocketAddress(h.getHost(), h.getPort());
+                })
+                .toArray(InetSocketAddress[]::new);
 
         ctaUser = user;
         ctaGroup = group;
@@ -460,9 +469,12 @@ public class CtaNearlineStorage implements NearlineStorage {
             credentials = InsecureChannelCredentials.create();
         }
 
-        channel = NettyChannelBuilder.forAddress(ctaEndpoint.getHost(), ctaEndpoint.getPort(),
-                    credentials)
+        var fixedAddressResolver = new FixedAddressResolver("cta://", ctaEndpoint);
+
+        channel = NettyChannelBuilder.forTarget(fixedAddressResolver.getServiceUrl(), credentials)
               .disableServiceConfigLookUp() // no lookup in DNS for service record
+              .defaultLoadBalancingPolicy("round_robin")
+              .nameResolverFactory(fixedAddressResolver)
               .channelType(NioSocketChannel.class) // use Nio event loop instead of epoll
               .eventLoopGroup(new NioEventLoopGroup(0,
                     new ThreadFactoryBuilder().setNameFormat("cta-grpc-worker-%d").build()))

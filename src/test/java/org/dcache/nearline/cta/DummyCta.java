@@ -5,7 +5,12 @@ import ch.cern.cta.rpc.CtaRpcGrpc;
 import ch.cern.cta.rpc.Request;
 import ch.cern.cta.rpc.Response;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import io.grpc.Grpc;
+import io.grpc.Metadata;
 import io.grpc.Server;
+import io.grpc.ServerCall;
+import io.grpc.ServerCallHandler;
+import io.grpc.ServerInterceptor;
 import io.grpc.Status;
 import io.grpc.StatusException;
 import io.grpc.netty.shaded.io.grpc.netty.GrpcSslContexts;
@@ -16,6 +21,9 @@ import io.grpc.netty.shaded.io.netty.handler.ssl.ClientAuth;
 import io.grpc.stub.StreamObserver;
 import java.io.File;
 import java.io.IOException;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
@@ -27,6 +35,8 @@ public class DummyCta {
     private volatile boolean drop;
 
     private final CtaRpcGrpc.CtaRpcImplBase ctaSvc;
+
+    private Set<String> requestsEndpoints = Collections.synchronizedSet(new HashSet<>());
 
     public DummyCta(File cert, File key) throws Exception {
 
@@ -42,6 +52,13 @@ public class DummyCta {
               .workerEventLoopGroup(new NioEventLoopGroup(2, new ThreadFactoryBuilder().setNameFormat("dummy-cta-server-worker-%d").build()))
               .channelType(NioServerSocketChannel.class)
               .addService(ctaSvc)
+                .intercept(new ServerInterceptor() {
+                    @Override
+                    public <ReqT, RespT> ServerCall.Listener<ReqT> interceptCall(ServerCall<ReqT, RespT> call, Metadata headers, ServerCallHandler<ReqT, RespT> next) {
+                        requestsEndpoints.add(call.getAttributes().get(Grpc.TRANSPORT_ATTR_LOCAL_ADDR).toString());
+                        return next.startCall(call, headers);
+                    }
+                })
               .directExecutor()
               .build();
     }
@@ -63,6 +80,14 @@ public class DummyCta {
 
     public String getConnectString() {
         return "localhost:" + server.getPort();
+    }
+
+    public int getServicePort() {
+        return server.getPort();
+    }
+
+    public Set<String> getRequestsEndpoints() {
+        return Set.copyOf(requestsEndpoints);
     }
 
     public void fail() {

@@ -5,6 +5,8 @@ import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.asn1.x509.BasicConstraints;
 import org.bouncycastle.asn1.x509.ExtendedKeyUsage;
 import org.bouncycastle.asn1.x509.Extension;
+import org.bouncycastle.asn1.x509.GeneralName;
+import org.bouncycastle.asn1.x509.GeneralNames;
 import org.bouncycastle.asn1.x509.KeyPurposeId;
 import org.bouncycastle.asn1.x509.KeyUsage;
 import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
@@ -57,6 +59,10 @@ public final class TestUtils {
                 new Date(notBefore),
                 new Date(notAfter), subjectDN,
                 subjectPublicKeyInfo)
+                .addExtension(Extension.subjectAlternativeName, true, new GeneralNames(new GeneralName[] {
+                        new GeneralName(GeneralName.dNSName, "localhost"),
+                        new GeneralName(GeneralName.dNSName, "localhost4"),
+                        new GeneralName(GeneralName.dNSName, "localhost6")}))
                 .addExtension(Extension.basicConstraints, true, new BasicConstraints(true))
                 .addExtension(Extension.keyUsage, true, new KeyUsage(KeyUsage.digitalSignature | KeyUsage.keyEncipherment))
                 .addExtension(Extension.extendedKeyUsage, true, new ExtendedKeyUsage(

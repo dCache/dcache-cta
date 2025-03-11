@@ -10,6 +10,7 @@ import static org.dcache.nearline.cta.CtaNearlineStorage.CTA_USER;
 import static org.dcache.nearline.cta.CtaNearlineStorage.IO_PORT;
 import static org.dcache.nearline.cta.TestUtils.generateSelfSignedCert;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.doAnswer;
@@ -665,6 +666,28 @@ public class CtaNearlineStorageTest {
         driver.remove(Set.of(request));
 
         verify(request, times(1)).failed(any(CacheException.class));
+    }
+
+
+    @Test
+    public void testMultipleEndpoints() {
+
+        var request = mockedStageRequest();
+        driver = new CtaNearlineStorage("foo", "bar");
+
+        var servicePort = cta.getServicePort();
+        drvConfig.put(CTA_ENDPOINT, "localhost4:" + servicePort + "," + "localhost6:" + servicePort);
+
+        driver.configure(drvConfig);
+        driver.start();
+
+        // invoice some to trigger load balancing
+        driver.stage(Set.of(request));
+        driver.stage(Set.of(request));
+        driver.stage(Set.of(request));
+        driver.stage(Set.of(request));
+
+        assertTrue("Load balancing is not used", cta.getRequestsEndpoints().size() > 1);
     }
 
     private FlushRequest mockedFlushRequest() {

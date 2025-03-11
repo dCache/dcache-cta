@@ -46,7 +46,7 @@ example:
 
     hsm create osm cta dcache-cta -cta-user=userA \
          -cta-group=groupA -cta-instance-name=instanceA \
-         -cta-frontend-addr=cta-forntend-host:17017 \
+         -cta-frontend-addr=cta-forntend-host1:17017,cta-forntend-host2:17017 \
          -cta-use-tls=true \
          -io-endpoint=a.b.c.d -io-port=1094
 
@@ -99,7 +99,7 @@ queue define class -expire=0 -pending=0 -total=0 -open <hsmType> *
 | Name                 | Description                                                    | required | default    |
 |:---------------------|:---------------------------------------------------------------|---------:|------------|
 | cta-instance-name    | The dCache instance name configured in CTA                     |      yes | -          |
-| cta-frontend-addr    | The CTA `cta-dcache` endpoint                                  |      yes | -          |
+| cta-frontend-addr    | A comma separated list of  CTA `cta-dcache` endpoints          |      yes | -          |
 | cta-user             | The dCache instance associated user in CTA                     |      yes | -          |
 | cta-group            | The dCache instance associated group in CTA                    |      yes | -          |
 | cta-ca-chain         | The path to CA root chain for use with TLS                     |       no | -          |
@@ -107,7 +107,14 @@ queue define class -expire=0 -pending=0 -total=0 -open <hsmType> *
 | cta-frontend-timeout | How log dCache waits in seconds for CTA frontend to reply      |       no | 30         |
 | io-endpoint          | The hostname or IP offered by dCache for IO by CTA             |       no | `hostname` |
 | io-port              | The TCP port offered by dCache for IO by CTA                   |       no | -          |
-| restore-success-on-close | **obsolete**                                               |        - | -          |
+| restore-success-on-close | **obsolete**                                                   |        - | -          |
+
+
+### Load balancing and failover
+
+If multiple `cta-frontend-addr` are provided, the driver will try to connect to all endpoints and use `round-robin`
+strategy to distribute the requests. If TLS is used, then all endpoints names should be present in SAN field of the
+certificate.
 
 ## Compatibility with CTA
 
