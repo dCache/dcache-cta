@@ -11,6 +11,7 @@ import static org.dcache.nearline.cta.CtaNearlineStorage.IO_PORT;
 import static org.dcache.nearline.cta.TestUtils.generateSelfSignedCert;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assume.assumeTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.doAnswer;
@@ -25,6 +26,8 @@ import diskCacheV111.util.CacheException;
 import diskCacheV111.vehicles.GenericStorageInfo;
 import java.io.File;
 import java.io.IOException;
+import java.net.NetworkInterface;
+import java.net.SocketException;
 import java.net.URI;
 import java.security.GeneralSecurityException;
 import java.util.HashMap;
@@ -670,7 +673,10 @@ public class CtaNearlineStorageTest {
 
 
     @Test
-    public void testMultipleEndpoints() {
+    public void testMultipleEndpoints() throws SocketException {
+
+        assumeTrue("localhost has only one IP address",
+                NetworkInterface.getByName("lo").getInterfaceAddresses().size() > 1);
 
         var request = mockedStageRequest();
         driver = new CtaNearlineStorage("foo", "bar");
