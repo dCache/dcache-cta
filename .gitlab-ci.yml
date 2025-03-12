@@ -9,6 +9,11 @@ variables:
   MAVEN_CLI_OPTS: "--batch-mode --errors --no-transfer-progress --fail-at-end --show-version -DinstallAtEnd=true -DdeployAtEnd=true  -Dmaven.repo.local=.m2/repository"
   REPO_NAME: dcache-cta
 
+# LB tests expect special DNS entries
+before_script:
+  - |
+    echo "127.0.0.1	localhost localhost.localdomain localhost4 localhost4.localdomain4" >> /etc/hosts
+    echo "::1	localhost localhost.localdomain localhost6 localhost6.localdomain6" >> /etc/hosts
 
 build:
   stage: build
