@@ -4,7 +4,7 @@
 
     <groupId>org.dcache</groupId>
     <artifactId>dcache-cta</artifactId>
-    <version>0.16.0</version>
+    <version>0.17.0-SNAPSHOT</version>
     <packaging>jar</packaging>
 
     <name>dCache Nearline Storage Driver for CTA</name>
@@ -32,7 +32,7 @@
     <scm>
         <connection>scm:git:https://github.com/dCache/dcache-cta.git</connection>
         <developerConnection>scm:git:ssh://git@github.com/dCache/dcache-cta.git</developerConnection>
-        <tag>v0.16.0</tag>
+        <tag>HEAD</tag>
     </scm>
 
     <repositories>
