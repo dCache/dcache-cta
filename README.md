@@ -128,4 +128,4 @@ The driver is compatible with all dCache versions staring 7.2. The compatibility
 
 ## Acknowledgements
 
-This driver is based and inspired by [`cta-communicator`](https://github.com/lemora/cta-communicator) by _Lea Morschel_ and  [`sapphire`](https://github.com/dCache/sapphire) by _Svenja Meyer_
+This driver is based and inspired by `cta-communicator` by _Lea Morschel_ and  [`sapphire`](https://github.com/dCache/sapphire) by _Svenja Meyer_
