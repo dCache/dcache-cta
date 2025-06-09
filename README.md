@@ -52,7 +52,7 @@ example:
 
 The dCache files stored in CTA will have hsm uri in form
 ```
-<hsmType>://<hsmName>/<pnfsid>?arichiveid=<id>
+<hsmType>://<hsmName>/<pnfsid>?archiveid=<id>
 ```
 Where `id` represents the CTA internal `archiveId`
 
