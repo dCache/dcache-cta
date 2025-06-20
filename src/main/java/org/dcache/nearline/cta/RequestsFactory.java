@@ -15,7 +15,10 @@ import cta.eos.CtaEos.Workflow;
 import cta.eos.CtaEos.Workflow.EventType;
 import java.io.File;
 import java.net.InetAddress;
+import java.net.URI;
 import java.time.Instant;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 import org.dcache.namespace.FileAttribute;
 import org.dcache.pool.nearline.spi.FlushRequest;
@@ -265,7 +268,9 @@ public class RequestsFactory {
 
         var uri = dcacheFileAttrs.getStorageInfo().locations().get(0);
         var id = dcacheFileAttrs.getPnfsId().toString();
-        long archiveId = Long.parseLong(uri.getQuery().substring("archiveid=".length()));
+
+        Map<String, String> queryParams = extractQueryParams(uri);
+        long archiveId = Long.parseLong(queryParams.get("archiveid"));
 
         var transport = transportProvider.getTransport(id, archiveId);
 
@@ -296,5 +301,43 @@ public class RequestsFactory {
         return Request.newBuilder()
               .setNotification(notification)
               .build();
+    }
+
+    /**
+     * Extracts query parameters from a given URI and returns them as a key-value map.
+     *
+     * <p>This method parses the query string of the provided URI, splits it into individual
+     * parameters, and maps each parameter's key to its corresponding value. If the query string
+     * is null, empty, or contains no valid parameters, an empty map is returned.
+     *
+     * @param uri the URI from which to extract query parameters
+     * @return a map containing query parameter keys and their corresponding values
+     */
+    private static Map<String, String> extractQueryParams(URI uri) {
+
+        var query = uri.getQuery();
+        if (query == null || query.isEmpty()) {
+            return Map.of();
+        }
+
+        String[] params = query.split("&");
+        if (params.length == 0) {
+            return Map.of();
+        }
+
+        Map<String, String> paramMap = new HashMap<>();
+        for (String param : params) {
+            if (param.isEmpty()) {
+                continue;
+            }
+            if (!param.contains("=")) {
+                continue;
+            }
+
+            String[] parts = param.split("=", 2);
+            paramMap.put(parts[0], parts[1]);
+        }
+
+        return paramMap;
     }
 }
