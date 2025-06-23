@@ -232,7 +232,8 @@ public class RequestsFactory {
 
         var uri = request.getUri();
         var id = new File(uri.getPath()).getName();
-        long archiveId = Long.parseLong(uri.getQuery().substring("archiveid=".length()));
+        Map<String, String> queryParams = extractQueryParams(uri);
+        long archiveId = Long.parseLong(queryParams.get("archiveid"));
 
         var md = Metadata.newBuilder()
               .setArchiveFileId(archiveId)
