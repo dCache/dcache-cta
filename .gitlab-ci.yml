@@ -145,6 +145,7 @@ release_job:
         - name: 'rpm'
           url: '$DOWNLOAD_URL'
 
+# requires gitlab 17.6 or later
 coverage:
   stage: build
   image: maven:3.6.3-openjdk-11
@@ -152,20 +153,8 @@ coverage:
     - mvn $MAVEN_CLI_OPTS clean org.jacoco:jacoco-maven-plugin:prepare-agent test jacoco:report
 
   artifacts:
-    paths:
-      - "target/site/jacoco/jacoco.xml"
-
-# Gitlab >= 14.9 required
-coverage-report:
-  stage: coverage
-  image: registry.gitlab.com/haynes/jacoco2cobertura:1.0.7
-  script:
-    - 'python /opt/cover2cover.py target/site/jacoco/jacoco.xml $CI_PROJECT_DIR/src/main/java/ > target/site/cobertura.xml'
-  dependencies:
-    - coverage
-  needs: ["coverage"]
-  artifacts:
     reports:
-      coverage_report:
-        coverage_format: cobertura
-        path: target/site/cobertura.xml
+          coverage_report:
+            coverage_format: jacoco
+            path: target/site/jacoco/jacoco.xml
+
