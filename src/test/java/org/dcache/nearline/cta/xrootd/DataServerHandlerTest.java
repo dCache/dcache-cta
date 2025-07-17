@@ -59,7 +59,7 @@ public class DataServerHandlerTest {
         when(ctx.channel()).thenReturn(cannel);
 
         requests = new ConcurrentHashMap<>();
-        handler = new DataServerHandler("cta", "test", requests);
+        handler = new DataServerHandler("cta", "test", requests, false);
     }
 
     @Test(expected = XrootdException.class)

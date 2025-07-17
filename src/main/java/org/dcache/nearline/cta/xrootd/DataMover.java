@@ -69,11 +69,17 @@ public class DataMover extends AbstractIdleService implements CtaTransportProvid
 
     private volatile String url;
 
+    /**
+     * Use direct IO for data mover.
+     */
+    private boolean dio;
+
     public DataMover(String type, String name, InetSocketAddress sa,
-          ConcurrentMap<String, PendingRequest> pendingRequests) {
+          ConcurrentMap<String, PendingRequest> pendingRequests, boolean useDio) {
 
         hsmType = type;
         hsmName = name;
+        dio = useDio;
 
         try {
             this.pendingRequests = pendingRequests;
@@ -181,7 +187,7 @@ public class DataMover extends AbstractIdleService implements CtaTransportProvid
             ServerProtocolFlags flags = new ServerProtocolFlags(0);
             TLSSessionInfo tlsSessionInfo = new TLSSessionInfo(flags);
 
-            DataServerHandler dataServer = new DataServerHandler(hsmType, hsmName, pendingRequests);
+            DataServerHandler dataServer = new DataServerHandler(hsmType, hsmName, pendingRequests, dio);
             dataServer.setSigningPolicy(signingPolicy);
             dataServer.setTlsSessionInfo(tlsSessionInfo);
 

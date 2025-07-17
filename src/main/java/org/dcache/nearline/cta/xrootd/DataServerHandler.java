@@ -29,6 +29,7 @@ import static org.dcache.xrootd.protocol.XrootdProtocol.kXR_writable;
 import static org.dcache.xrootd.protocol.XrootdProtocol.kXR_xset;
 
 import com.google.common.net.InetAddresses;
+import com.sun.nio.file.ExtendedOpenOption;
 import diskCacheV111.util.Adler32;
 import diskCacheV111.util.CacheException;
 import io.netty.channel.ChannelHandlerContext;
@@ -41,12 +42,14 @@ import java.nio.ByteBuffer;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.OpenOption;
 import java.nio.file.StandardOpenOption;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.EnumSet;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentMap;
@@ -168,12 +171,18 @@ public class DataServerHandler extends XrootdProtocolRequestHandler {
      */
     private final String hsmType;
 
+    /**
+     * Use direct IO for data mover.
+     */
+    private final boolean dio;
+
     public DataServerHandler(String type, String name,
-          ConcurrentMap<String, PendingRequest> pendingRequests) {
+          ConcurrentMap<String, PendingRequest> pendingRequests, boolean useDio) {
 
         hsmType = type;
         hsmName = name;
         this.pendingRequests = pendingRequests;
+        dio = useDio;
     }
 
     @Override
@@ -236,7 +245,7 @@ public class DataServerHandler extends XrootdProtocolRequestHandler {
                   TimeUtils.describe(Duration.between(Instant.now(), pr.getSubmissionTime()).abs())
                         .orElse("-"));
 
-            EnumSet<StandardOpenOption> openOptions = EnumSet.noneOf(StandardOpenOption.class);
+            Set<OpenOption> openOptions = new HashSet<>();
             if (msg.isReadWrite() || msg.isNew() || msg.isDelete()) {
                 if (!(r instanceof StageRequest)) {
                     throw new XrootdException(kXR_ArgInvalid,
@@ -254,6 +263,9 @@ public class DataServerHandler extends XrootdProtocolRequestHandler {
                           "An attempt to open-for-write for flush requests");
                 }
                 LOGGER.info("Opening {} for reading from {}.", file, new RemoteAddressHolder(ctx));
+                if (dio) {
+                    openOptions.add(ExtendedOpenOption.DIRECT);
+                }
                 openOptions.add(StandardOpenOption.READ);
             }
 

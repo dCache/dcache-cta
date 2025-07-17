@@ -59,6 +59,7 @@ public class CtaNearlineStorage implements NearlineStorage {
     public static final String IO_ENDPOINT = "io-endpoint";
     public static final String IO_PORT = "io-port";
     public static final String CTA_REQUEST_TIMEOUT = "cta-frontend-timeout";
+    public static final String DIO = "use-dio";
 
     protected final String type;
     protected final String name;
@@ -128,6 +129,11 @@ public class CtaNearlineStorage implements NearlineStorage {
      * CTA frontend request timeout.
      */
     private int ctaRequestTimeoutInSec = 30;
+
+    /**
+     * Use direct IO for data mover.
+     */
+    private boolean dio;
 
     public CtaNearlineStorage(String type, String name) {
 
@@ -446,12 +452,14 @@ public class CtaNearlineStorage implements NearlineStorage {
         if (timeoutString != null) {
             ctaRequestTimeoutInSec = Integer.parseInt(timeoutString);
         }
+
+        dio = Boolean.parseBoolean(properties.getOrDefault(DIO, "false"));
     }
 
     @Override
     public void start() {
 
-        dataMover = new DataMover(type, name, ioSocketAddress,       pendingRequests);
+        dataMover = new DataMover(type, name, ioSocketAddress, pendingRequests, dio);
         dataMover.startAsync().awaitRunning();
 
         ChannelCredentials credentials;
