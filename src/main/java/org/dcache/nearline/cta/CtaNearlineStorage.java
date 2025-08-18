@@ -547,7 +547,8 @@ public class CtaNearlineStorage implements NearlineStorage {
         return URI.create(type + "://" + name + "/" + attrs.getPnfsId() + "?archiveid=*");
     }
 
-    @Command(name="show requests")
+    @Command(name="show requests", hint = "show pending requests",
+            description = "Show pending requests to CTA nearline storage")
     public class ShowRequestsCommand implements Callable<String> {
         @Override
         public String call() {
