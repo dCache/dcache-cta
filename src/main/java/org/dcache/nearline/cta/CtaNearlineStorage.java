@@ -9,6 +9,7 @@ import com.google.common.base.Throwables;
 import com.google.common.net.HostAndPort;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import diskCacheV111.util.CacheException;
+import dmg.util.command.Command;
 import io.grpc.ChannelCredentials;
 import io.grpc.ConnectivityState;
 import io.grpc.Deadline;
@@ -27,13 +28,15 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
-
+import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
-import ch.cern.cta.rpc.CtaRpcGrpc.CtaRpcBlockingStub;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+
+import ch.cern.cta.rpc.CtaRpcGrpc.CtaRpcBlockingStub;
 import org.dcache.namespace.FileAttribute;
 import org.dcache.nearline.cta.xrootd.DataMover;
 import org.dcache.pool.nearline.spi.FlushRequest;
@@ -249,7 +252,7 @@ public class CtaNearlineStorage implements NearlineStorage {
 
         var cancelRequest = ctaRequestFactory.getAbortStoreRequest(ar, response);
 
-        pendingRequests.put(id, new PendingRequest(r) {
+        pendingRequests.put(id, new PendingRequest(r, response.getRequestObjectstoreId(), PendingRequest.Type.FLUSH) {
                     @Override
                     public void cancel() {
                         try {
@@ -318,7 +321,7 @@ public class CtaNearlineStorage implements NearlineStorage {
                 );
 
                 var cancelRequest = ctaRequestFactory.getAbortStageRequest(rr, response);
-                pendingRequests.put(id, new PendingRequest(r) {
+                pendingRequests.put(id, new PendingRequest(r, response.getRequestObjectstoreId(), PendingRequest.Type.STAGE) {
                             @Override
                             public void cancel() {
                                 // on cancel send the request to CTA; on success cancel the requests
@@ -542,5 +545,34 @@ public class CtaNearlineStorage implements NearlineStorage {
 
     private URI createZeroFileUri(FileAttributes attrs) {
         return URI.create(type + "://" + name + "/" + attrs.getPnfsId() + "?archiveid=*");
+    }
+
+    @Command(name="show requests")
+    public class ShowRequestsCommand implements Callable<String> {
+        @Override
+        public String call() {
+            if (pendingRequests.isEmpty()) {
+                return "No pending requests";
+            }
+
+            StringBuilder sb = new StringBuilder();
+            sb.append("Pending requests:\n");
+
+            pendingRequests.entrySet().stream()
+                    .collect(Collectors.groupingBy(e -> e.getValue().getAction()))
+                    .forEach((type, entries) -> {
+                        sb.append(type).append(":\n");
+                        sb.append(" count: ").append(entries.size()).append("\n");
+                        for (var entry : entries) {
+                            sb.append("   ")
+                                    .append(entry.getKey())
+                                    .append(" -> ")
+                                    .append(entry.getValue().getCtaRequestId()).append("\n");
+                        }
+                        sb.append("\n");
+                    });
+
+            return sb.toString();
+        }
     }
 }

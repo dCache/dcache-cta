@@ -531,7 +531,7 @@ public class DataServerHandlerTest {
 
         when(request.getReplicaUri()).thenReturn(f.toURI());
 
-        requests.put("0000C9B4E3768770452E8B1B8E0232584872", new PendingRequest(request));
+        requests.put("0000C9B4E3768770452E8B1B8E0232584872", new PendingRequest(request, "stage", PendingRequest.Type.STAGE));
 
         waitForComplete = new CompletableFuture<>();
 
@@ -573,7 +573,7 @@ public class DataServerHandlerTest {
 
         when(request.getReplicaUri()).thenReturn(f.toURI());
 
-        requests.put("0000C9B4E3768770452E8B1B8E0232584872", new PendingRequest(request));
+        requests.put("0000C9B4E3768770452E8B1B8E0232584872", new PendingRequest(request, "flush", PendingRequest.Type.FLUSH));
 
         return request;
     }
