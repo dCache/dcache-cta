@@ -3,6 +3,7 @@ package org.dcache.nearline.cta;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import ch.cern.cta.rpc.CtaRpcGrpc;
+import ch.cern.cta.rpc.Response;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Splitter;
 import com.google.common.base.Throwables;
@@ -10,11 +11,13 @@ import com.google.common.net.HostAndPort;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import diskCacheV111.util.CacheException;
 import dmg.util.command.Command;
+import dmg.util.command.Option;
 import io.grpc.ChannelCredentials;
 import io.grpc.ConnectivityState;
 import io.grpc.Deadline;
 import io.grpc.InsecureChannelCredentials;
 import io.grpc.ManagedChannel;
+import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.grpc.TlsChannelCredentials;
 import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder;
@@ -37,6 +40,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import ch.cern.cta.rpc.CtaRpcGrpc.CtaRpcBlockingStub;
+import org.dcache.commons.stats.RequestCounters;
+import org.dcache.commons.stats.RequestExecutionTimeGauges;
 import org.dcache.namespace.FileAttribute;
 import org.dcache.nearline.cta.xrootd.DataMover;
 import org.dcache.pool.nearline.spi.FlushRequest;
@@ -138,6 +143,29 @@ public class CtaNearlineStorage implements NearlineStorage {
      */
     private boolean dio;
 
+
+    /**
+     * Actions that can be performed by this nearline storage. A shorthand version of cta.eos.CtaEos.Workflow.EventType
+     */
+    enum Action {
+        GET_ARCHIVE_ID,
+        SUBMIT_FLUSH,
+        SUBMIT_STAGE,
+        CANCEL_FLUSH,
+        CANCEL_STAGE,
+        DELETE_REQUEST,
+    }
+
+    /**
+     * gRPC request execution statistics
+     */
+    private final RequestExecutionTimeGauges<Action> requestStats = new RequestExecutionTimeGauges<>("CTA gRPC Requests statistics");
+
+    /**
+     * gRPC request counters
+     */
+    private final RequestCounters<Action> requestCounters = new RequestCounters<>("CTA gRPC Requests counters");
+
     public CtaNearlineStorage(String type, String name) {
 
         Objects.requireNonNull(type, "HSM type is not provided");
@@ -187,7 +215,7 @@ public class CtaNearlineStorage implements NearlineStorage {
                 }
 
                 var createRequest = ctaRequestFactory.getCreateRequest(fr.getFileAttributes());
-                var createResponse =  cta.withDeadline(getRequestDeadline()).create(createRequest);
+                var createResponse =  withStats(Action.GET_ARCHIVE_ID, () -> cta.withDeadline(getRequestDeadline()).create(createRequest));
                 LOGGER.info("{}: Create new archive id {} for {}",  fr.getId(),
                         createResponse.getArchiveFileId(),
                         fr.getFileAttributes().getPnfsId()
@@ -240,7 +268,7 @@ public class CtaNearlineStorage implements NearlineStorage {
         };
 
         var ar = ctaRequestFactory.getStoreRequest(r, ctaArchiveId);
-        var response = cta.withDeadline(getRequestDeadline()).archive(ar);
+        var response = withStats(Action.CANCEL_FLUSH, () -> cta.withDeadline(getRequestDeadline()).archive(ar));
 
         LOGGER.info("{} : {} : archive id {}, request: {}",
                 r.getId(),
@@ -256,7 +284,7 @@ public class CtaNearlineStorage implements NearlineStorage {
                     @Override
                     public void cancel() {
                         try {
-                            cta.withDeadline(getRequestDeadline()).delete(cancelRequest);
+                            withStats(Action.CANCEL_FLUSH, () -> cta.withDeadline(getRequestDeadline()).delete(cancelRequest));
                             super.cancel();
                         } catch (StatusRuntimeException e) {
                             LOGGER.error("Failed to cancel flush request: {}", e.getMessage());
@@ -313,7 +341,7 @@ public class CtaNearlineStorage implements NearlineStorage {
                 }
 
                 var rr = ctaRequestFactory.getStageRequest(r);
-                var response = cta.withDeadline(getRequestDeadline()).retrieve(rr);
+                var response = withStats(Action.SUBMIT_STAGE, () -> cta.withDeadline(getRequestDeadline()).retrieve(rr));
                 LOGGER.info("{} : {} : request: {}",
                         r.getId(),
                         r.getFileAttributes().getPnfsId(),
@@ -326,7 +354,7 @@ public class CtaNearlineStorage implements NearlineStorage {
                             public void cancel() {
                                 // on cancel send the request to CTA; on success cancel the requests
                                 try {
-                                    cta.withDeadline(getRequestDeadline()).cancelRetrieve(cancelRequest);
+                                    withStats(Action.CANCEL_STAGE, () -> cta.withDeadline(getRequestDeadline()).cancelRetrieve(cancelRequest));
                                     super.cancel();
                                 } catch (StatusRuntimeException e) {
                                     LOGGER.error("Failed to cancel retrieve request: {}", e.getMessage());
@@ -362,7 +390,7 @@ public class CtaNearlineStorage implements NearlineStorage {
 
             try {
                 var deleteRequest = ctaRequestFactory.getRemoveRequest(r);
-                var result = cta.withDeadline(getRequestDeadline()).delete(deleteRequest);
+                var result = withStats(Action.DELETE_REQUEST, () -> cta.withDeadline(getRequestDeadline()).delete(deleteRequest));
                 LOGGER.info("Delete request {} submitted {}",
                         r.getId(),
                         r.getUri()
@@ -573,6 +601,54 @@ public class CtaNearlineStorage implements NearlineStorage {
                         sb.append("\n");
                     });
 
+            return sb.toString();
+        }
+    }
+
+
+    /**
+     * Wraps a gRPC request with statistics collection.
+     *
+     * @param action the action type for which the statistics are collected.
+     * @param callable the gRPC request to execute.
+     * @return the response from the gRPC request.
+     * @throws Exception if the gRPC request fails.
+     */
+    private Response withStats(Action action, Callable<Response> callable) throws StatusRuntimeException {
+            try {
+                var t0 = System.nanoTime();
+                var response = callable.call();
+                requestStats.getGauge(action).update(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - t0));
+                requestCounters.incrementRequests(action);
+
+                return response;
+            } catch (Exception e) {
+                requestCounters.incrementFailed(action);
+                Throwables.throwIfInstanceOf(e, StatusRuntimeException.class);
+                throw new StatusRuntimeException(Status.UNKNOWN);
+            }
+    }
+
+
+    @Command(name="show stats",
+            hint = "show gRPC requests statistics",
+            description = "Show gRPC requests statistics for CTA nearline storage")
+    public class StatsCommand implements Callable<String> {
+
+        @Option(name = "c", usage = "clear current statistics values")
+        boolean clean;
+
+        @Override
+        public String call() {
+            StringBuilder sb = new StringBuilder();
+            sb.append(requestStats);
+            sb.append("\n\n");
+            sb.append(requestCounters);
+
+            if (clean) {
+                requestStats.reset();
+                requestCounters.reset();
+            }
             return sb.toString();
         }
     }
