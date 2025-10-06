@@ -16,7 +16,7 @@
  */
 package org.dcache.nearline.cta.xrootd;
 
-import static org.dcache.nearline.cta.Utils.calculateChecksum;
+import static org.dcache.nearline.cta.Utils.calculateAdler32Checksum;
 import static org.dcache.xrootd.protocol.XrootdProtocol.kXR_ArgInvalid;
 import static org.dcache.xrootd.protocol.XrootdProtocol.kXR_FileNotOpen;
 import static org.dcache.xrootd.protocol.XrootdProtocol.kXR_IOError;
@@ -433,7 +433,7 @@ public class DataServerHandler extends XrootdProtocolRequestHandler {
                         var file = getFile(r);
                         ForkJoinPool.commonPool().execute(() -> {
                             try {
-                                Checksum checksum = calculateChecksum(file);
+                                Checksum checksum = calculateAdler32Checksum(file);
                                 LOGGER.info("Files {} checksum after restore: {}", file, checksum);
                                 LOGGER.info("Successful restored from {} : {} : archive id: {}", new RemoteAddressHolder(ctx), requestId, archiveId);
                                 r.completed(Set.of(checksum));

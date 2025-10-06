@@ -23,7 +23,7 @@ public class Utils {
      * @return the ADLER32 checksum of the file
      * @throws IOException if an I/O error occurs
      */
-    public static Checksum calculateChecksum(File file) throws IOException {
+    public static Checksum calculateAdler32Checksum(File file) throws IOException {
 
         ByteBuffer bb = ByteBuffer.allocate(8192);
         var adler = new Adler32();

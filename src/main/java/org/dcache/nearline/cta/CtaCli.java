@@ -1,6 +1,6 @@
 package org.dcache.nearline.cta;
 
-import static org.dcache.nearline.cta.Utils.calculateChecksum;
+import static org.dcache.nearline.cta.Utils.calculateAdler32Checksum;
 import static org.dcache.nearline.cta.CtaNearlineStorage.CTA_ENDPOINT;
 import static org.dcache.nearline.cta.CtaNearlineStorage.CTA_GROUP;
 import static org.dcache.nearline.cta.CtaNearlineStorage.CTA_INSTANCE;
@@ -186,7 +186,7 @@ public class CtaCli implements Runnable {
                     .storageClass(storageClass)
                     .hsm("cta").creationTime(posixAttr.creationTime().toMillis())
                     .pnfsId(InodeId.toPnfsid(id)) // just reuse
-                    .checksum(calculateChecksum(path.toFile())).build();
+                    .checksum(calculateAdler32Checksum(path.toFile())).build();
 
             return new FlushRequest() {
                 @Override
