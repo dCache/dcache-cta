@@ -1,5 +1,6 @@
 package org.dcache.nearline.cta;
 
+import static org.dcache.nearline.cta.Utils.calculateChecksum;
 import static org.dcache.nearline.cta.CtaNearlineStorage.CTA_ENDPOINT;
 import static org.dcache.nearline.cta.CtaNearlineStorage.CTA_GROUP;
 import static org.dcache.nearline.cta.CtaNearlineStorage.CTA_INSTANCE;
@@ -13,14 +14,11 @@ import ch.cern.cta.rpc.Request;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import cta.admin.CtaAdmin;
-import diskCacheV111.util.Adler32;
 import io.grpc.InsecureChannelCredentials;
 import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder;
 import io.grpc.netty.shaded.io.netty.channel.nio.NioEventLoopGroup;
 import io.grpc.netty.shaded.io.netty.channel.socket.nio.NioSocketChannel;
 import org.dcache.pool.nearline.spi.FlushRequest;
-import org.dcache.util.Checksum;
-import org.dcache.util.ChecksumType;
 import org.dcache.vehicles.FileAttributes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,8 +27,6 @@ import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.URI;
-import java.nio.ByteBuffer;
-import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFileAttributeView;
@@ -251,25 +247,6 @@ public class CtaCli implements Runnable {
                     waitToCpmplete.countDown();
                 }
             };
-        }
-
-
-        private static Checksum calculateChecksum(File file) throws IOException {
-
-            ByteBuffer bb = ByteBuffer.allocate(8192);
-            var adler = new Adler32();
-            try (FileChannel fc = FileChannel.open(file.toPath())) {
-                while (true) {
-                    bb.clear();
-                    int n = fc.read(bb);
-                    if (n < 0) {
-                        break;
-                    }
-                    bb.flip();
-                    adler.update(bb);
-                }
-                return new Checksum(ChecksumType.ADLER32, adler.digest());
-            }
         }
     }
 

@@ -16,6 +16,7 @@
  */
 package org.dcache.nearline.cta.xrootd;
 
+import static org.dcache.nearline.cta.Utils.calculateChecksum;
 import static org.dcache.xrootd.protocol.XrootdProtocol.kXR_ArgInvalid;
 import static org.dcache.xrootd.protocol.XrootdProtocol.kXR_FileNotOpen;
 import static org.dcache.xrootd.protocol.XrootdProtocol.kXR_IOError;
@@ -30,7 +31,6 @@ import static org.dcache.xrootd.protocol.XrootdProtocol.kXR_xset;
 
 import com.google.common.net.InetAddresses;
 import com.sun.nio.file.ExtendedOpenOption;
-import diskCacheV111.util.Adler32;
 import diskCacheV111.util.CacheException;
 import io.netty.channel.ChannelHandlerContext;
 import java.io.File;
@@ -38,7 +38,6 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.URI;
-import java.nio.ByteBuffer;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
@@ -48,7 +47,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Base64;
-import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -63,7 +61,6 @@ import org.dcache.pool.nearline.spi.FlushRequest;
 import org.dcache.pool.nearline.spi.NearlineRequest;
 import org.dcache.pool.nearline.spi.StageRequest;
 import org.dcache.util.Checksum;
-import org.dcache.util.ChecksumType;
 import org.dcache.util.Strings;
 import org.dcache.util.TimeUtils;
 import org.dcache.xrootd.core.XrootdException;
@@ -596,26 +593,6 @@ public class DataServerHandler extends XrootdProtocolRequestHandler {
                   System.currentTimeMillis() / 1000);
         } catch (IOException e) {
             throw new XrootdException(kXR_IOError, e.getMessage());
-        }
-    }
-
-    private static Checksum calculateChecksum(File file) throws IOException {
-
-        ByteBuffer bb = ByteBuffer.allocate(8192);
-        var adler = new Adler32();
-
-        try (FileChannel fc = FileChannel.open(file.toPath())) {
-            while (true) {
-                bb.clear();
-                int n = fc.read(bb);
-                if (n < 0) {
-                    break;
-                }
-                bb.flip();
-                adler.update(bb);
-            }
-
-            return new Checksum(ChecksumType.ADLER32, adler.digest());
         }
     }
 
