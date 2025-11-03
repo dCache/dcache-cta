@@ -92,6 +92,7 @@ public class DataMover extends AbstractIdleService implements CtaTransportProvid
                   .localAddress(sa)
                   .childOption(ChannelOption.TCP_NODELAY, true)
                   .childOption(ChannelOption.SO_KEEPALIVE, true)
+                  .childOption(ChannelOption.SO_REUSEADDR, true)
                   .childHandler(new XrootChannelInitializer());
         } catch (Exception e) {
             Throwables.throwIfUnchecked(e);
