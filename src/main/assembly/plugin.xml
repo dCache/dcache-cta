@@ -6,6 +6,10 @@
         <dependencySet>
             <useProjectArtifact>true</useProjectArtifact>
             <useTransitiveFiltering>true</useTransitiveFiltering>
+            <excludes>
+                <!-- forcefully exclude Guava to avoid conflicts with other versions -->
+                <exclude>com.google.guava:guava</exclude>
+            </excludes>
         </dependencySet>
     </dependencySets>
 
