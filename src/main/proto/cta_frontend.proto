@@ -166,6 +166,8 @@ service CtaRpc {
 
 service CtaRpcStream {
   rpc TapeLs (cta.xrd.Request) returns (stream StreamResponse) {}
+  // common method for all the streaming admin commands
+  rpc GenericAdminStream (cta.xrd.Request) returns (stream StreamResponse) {}
 }
 
 service Negotiation {

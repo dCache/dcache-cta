@@ -44,6 +44,7 @@ message OptionBoolean {
     NO_RECALL                          = 17;
     DIRTY_BIT                          = 18;
     IS_REPACK_VO                       = 19;
+    MISSING_FILE_COPIES                = 20;
   }
 
   Key key                              =  1;
@@ -123,6 +124,7 @@ message OptionString {
     WEBCAM_URL                         = 41;
     LIBRARY_LOCATION                   = 42;
     ARCHIVE_ROUTE_TYPE                 = 43;
+    DISK_FILE_ID                       = 44;
   }
 
   Key key                              =  1;
@@ -262,6 +264,7 @@ message AdminLsItem {
   cta.common.EntryLog creation_log          = 2;
   cta.common.EntryLog last_modification_log = 3;
   string comment                            = 4;
+  string instance_name                      = 5;
 }
 
 message ArchiveFileLsItem {
@@ -288,6 +291,7 @@ message ArchiveRouteLsItem {
   cta.common.EntryLog last_modification_log = 5;
   string comment                            = 6;
   ArchiveRouteType archive_route_type       = 7;
+  string instance_name                      = 8;
 }
 
 message DriveConfigItem {
@@ -343,6 +347,7 @@ message DriveLsItem {
   string physical_library                   = 28;
   bool physical_library_disabled            = 29;
   string scheduler_backend_name             = 30;
+  string instance_name                      = 31;
 }
 
 message FailedRequestLsItem {
@@ -357,12 +362,16 @@ message FailedRequestLsItem {
   repeated string failurelogs               = 9;
   uint32 totalreportretries                 = 10;
   repeated string reportfailurelogs         = 11;
+  string scheduler_backend_name             = 12;
+  string instance_name                      = 13;
 }
 
 message FailedRequestLsSummary {
   RequestType request_type                  = 1;
   uint64 total_files                        = 2;
   uint64 total_size                         = 3;
+  string scheduler_backend_name             = 4;
+  string instance_name                      = 5;
 }
 
 message GroupMountRuleLsItem {
@@ -372,6 +381,7 @@ message GroupMountRuleLsItem {
   cta.common.EntryLog creation_log          = 4;
   cta.common.EntryLog last_modification_log = 5;
   string comment                            = 6;
+  string instance_name                      = 7;
 }
 
 message ListPendingArchivesItem {
@@ -379,6 +389,7 @@ message ListPendingArchivesItem {
   cta.common.TapeFile tf                    = 2;
   uint64 copy_nb                            = 3;
   string tapepool                           = 4;
+  string instance_name                      = 5;
 }
 
 message ListPendingArchivesSummary {
@@ -407,6 +418,7 @@ message LogicalLibraryLsItem {
   string comment                            = 5;
   string disabled_reason                    = 6;
   string physical_library                   = 7;
+  string instance_name                      = 8;
 }
 
 message PhysicalLibraryLsItem {
@@ -425,6 +437,7 @@ message PhysicalLibraryLsItem {
   cta.common.EntryLog last_modification_log = 13;
   bool is_disabled                          = 14;
   string disabled_reason                    = 15;
+  string instance_name                      = 16;
 }
 
 message MediaTypeLsItem {
@@ -439,6 +452,7 @@ message MediaTypeLsItem {
   string comment                            =  9;
   cta.common.EntryLog creation_log          = 10;
   cta.common.EntryLog last_modification_log = 11;
+  string instance_name                      = 12;
 }
 
 message MountPolicyLsItem {
@@ -450,6 +464,7 @@ message MountPolicyLsItem {
   cta.common.EntryLog creation_log          = 7;
   cta.common.EntryLog last_modification_log = 8;
   string comment                            = 9;
+  string instance_name                      = 10;
 }
 
 message RepackDestinationInfos{
@@ -487,6 +502,8 @@ message RepackLsItem {
   uint64 total_files_on_tape_at_start               = 26;
   uint64 total_bytes_on_tape_at_start               = 27;
   bool all_files_selected_at_start                  = 28;
+  string instance_name                              = 29;
+  string scheduler_backend_name                     = 30;
 }
 
 message RequesterMountRuleLsItem {
@@ -496,6 +513,7 @@ message RequesterMountRuleLsItem {
   cta.common.EntryLog creation_log          = 4;
   cta.common.EntryLog last_modification_log = 5;
   string comment                            = 6;
+  string instance_name                      = 7;
 }
 
 message ShowQueuesItem {
@@ -532,6 +550,8 @@ message ShowQueuesItem {
   uint64 youngest_age                       = 31;
   string highest_priority_mount_policy      = 32;
   string lowest_request_age_mount_policy    = 33;
+  string scheduler_backend_name             = 34;
+  string instance_name                      = 35;
 }
 
 message StorageClassLsItem {
@@ -541,6 +561,7 @@ message StorageClassLsItem {
   cta.common.EntryLog creation_log          = 4;
   cta.common.EntryLog last_modification_log = 5;
   string comment                            = 6;
+  string instance_name                      = 7;
 }
 
 message TapeLsItem {
@@ -582,6 +603,7 @@ message TapeLsItem {
   string purchase_order                     = 31;
   string physical_library                   = 32;
   LabelFormat label_format                  = 33;
+  string instance_name                      = 34;
 }
 
 message Checksum {
@@ -613,6 +635,7 @@ message TapeFileLsItem {
   ArchiveFile af                            = 1;
   DiskFile df                               = 2;
   TapeFile tf                               = 3;
+  string instance_name                      = 4;
 }
 
 message TapePoolLsItem {
@@ -624,12 +647,14 @@ message TapePoolLsItem {
   uint64 capacity_bytes                     =  6;
   uint64 data_bytes                         =  7;
   bool   encrypt                            =  8;
-  string supply                             =  9;
+  // 9 supply is DEPRECATED ;
   cta.common.EntryLog created               = 10;
   cta.common.EntryLog modified              = 11;
   string comment                            = 12;
   repeated string supply_source             = 13;
   repeated string supply_destination        = 14;
+  string encryption_key_name                = 15;
+  string instance_name                      = 16;
 }
 
 message DiskSystemLsItem {
@@ -642,13 +667,15 @@ message DiskSystemLsItem {
   string comment                            =  8;
   string disk_instance                      =  10;
   string disk_instance_space                =  11;
+  string instance_name                      =  12;
 }
 
 message DiskInstanceLsItem {
   string name                               =  1;
   string comment                            =  2;
   cta.common.EntryLog creation_log          =  3;
-  cta.common.EntryLog last_modification_log =  4;  
+  cta.common.EntryLog last_modification_log =  4;
+  string instance_name                      =  5;
 }
 
 message DiskInstanceSpaceLsItem {
@@ -660,7 +687,8 @@ message DiskInstanceSpaceLsItem {
   uint64 free_space                         =  6;
   uint64 last_refresh_time                  =  7;
   cta.common.EntryLog creation_log          =  8;
-  cta.common.EntryLog last_modification_log =  9;  
+  cta.common.EntryLog last_modification_log =  9;
+  string instance_name                      = 10;
 }
 
 message VirtualOrganizationLsItem {
@@ -673,6 +701,7 @@ message VirtualOrganizationLsItem {
   uint64 max_file_size                      =  7;
   string diskinstance                       =  8;
   bool   is_repack_vo                       =  9;
+  string instance_name                      = 10;
 }
 
 message Version{
@@ -681,36 +710,38 @@ message Version{
 }
 
 message VersionItem {
-  Version client_version = 1;
-  Version server_version = 2;
+  Version client_version             = 1;
+  Version server_version             = 2;
   string catalogue_connection_string = 3;
-  string catalogue_version = 4;
-  bool is_upgrading = 5;
-  string scheduler_backend_name = 6;
+  string catalogue_version           = 4;
+  bool is_upgrading                  = 5;
+  string scheduler_backend_name      = 6;
+  string instance_name               = 7;
 }
 
 message RecycleTapeFileLsItem {
-  string vid = 1;
-  uint64 fseq = 2;
-  uint64 block_id = 3;
-  uint32 copy_nb = 4;
-  uint64 tape_file_creation_time = 5;
-  uint64 archive_file_id = 6;
-  string disk_instance = 7;
-  string disk_file_id = 8;
-  string disk_file_id_when_deleted = 9;
-  uint64 disk_file_uid = 10;
-  uint64 disk_file_gid = 11;
-  uint64 size_in_bytes = 12;
-  repeated Checksum checksum = 13;
-  string storage_class = 14;
-  uint64 archive_file_creation_time = 15;
-  uint64 reconciliation_time = 16;
-  string collocation_hint = 17;
-  string disk_file_path = 18;
-  string reason_log = 19;
-  uint64 recycle_log_time = 20;
-  string virtual_organization = 21;
+  string vid                         = 1;
+  uint64 fseq                        = 2;
+  uint64 block_id                    = 3;
+  uint32 copy_nb                     = 4;
+  uint64 tape_file_creation_time     = 5;
+  uint64 archive_file_id             = 6;
+  string disk_instance               = 7;
+  string disk_file_id                = 8;
+  string disk_file_id_when_deleted   = 9;
+  uint64 disk_file_uid               = 10;
+  uint64 disk_file_gid               = 11;
+  uint64 size_in_bytes               = 12;
+  repeated Checksum checksum         = 13;
+  string storage_class               = 14;
+  uint64 archive_file_creation_time  = 15;
+  uint64 reconciliation_time         = 16;
+  string collocation_hint            = 17;
+  string disk_file_path              = 18;
+  string reason_log                  = 19;
+  uint64 recycle_log_time            = 20;
+  string virtual_organization        = 21;
+  string instance_name               = 22;
 }
 
 message ActivityMountRuleLsItem {
@@ -721,4 +752,5 @@ message ActivityMountRuleLsItem {
   cta.common.EntryLog creation_log          = 5;
   cta.common.EntryLog last_modification_log = 6;
   string comment                            = 7;
+  string instance_name                      = 8;
 }
