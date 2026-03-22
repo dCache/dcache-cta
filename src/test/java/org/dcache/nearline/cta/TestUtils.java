@@ -1,6 +1,7 @@
 package org.dcache.nearline.cta;
 
 import eu.emi.security.authn.x509.impl.CertificateUtils;
+import org.bouncycastle.asn1.DEROctetString;
 import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.asn1.x509.BasicConstraints;
 import org.bouncycastle.asn1.x509.ExtendedKeyUsage;
@@ -62,15 +63,15 @@ public final class TestUtils {
                 .addExtension(Extension.subjectAlternativeName, true, new GeneralNames(new GeneralName[] {
                         new GeneralName(GeneralName.dNSName, "localhost"),
                         new GeneralName(GeneralName.dNSName, "localhost4"),
-                        new GeneralName(GeneralName.dNSName, "localhost6")}))
+                        new GeneralName(GeneralName.dNSName, "localhost6"),
+                        new GeneralName(GeneralName.iPAddress, new DEROctetString(new byte[]{127, 0, 0, 1})),
+                        new GeneralName(GeneralName.iPAddress, new DEROctetString(new byte[]{0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,1}))}))
                 .addExtension(Extension.basicConstraints, true, new BasicConstraints(true))
                 .addExtension(Extension.keyUsage, true, new KeyUsage(KeyUsage.digitalSignature | KeyUsage.keyEncipherment))
                 .addExtension(Extension.extendedKeyUsage, true, new ExtendedKeyUsage(
                                 new KeyPurposeId[] {KeyPurposeId.id_kp_clientAuth, KeyPurposeId.id_kp_serverAuth}
                         )
                 );
-
-
 
         String signatureAlgorithm = "SHA256WithRSA";
 

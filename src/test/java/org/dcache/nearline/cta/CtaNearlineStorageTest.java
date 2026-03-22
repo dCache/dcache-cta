@@ -26,6 +26,8 @@ import diskCacheV111.util.CacheException;
 import diskCacheV111.vehicles.GenericStorageInfo;
 import java.io.File;
 import java.io.IOException;
+import java.net.Inet4Address;
+import java.net.Inet6Address;
 import java.net.NetworkInterface;
 import java.net.SocketException;
 import java.net.URI;
@@ -671,27 +673,30 @@ public class CtaNearlineStorageTest {
         verify(request, times(1)).failed(any(CacheException.class));
     }
 
-
     @Test
     public void testMultipleEndpoints() throws SocketException {
 
-        assumeTrue("localhost has only one IP address",
-                NetworkInterface.getByName("lo").getInterfaceAddresses().size() > 1);
+        var lo = NetworkInterface.getByName("lo");
+        boolean hasIPv4 = lo.getInterfaceAddresses().stream()
+                .anyMatch(a -> a.getAddress() instanceof Inet4Address);
+        boolean hasIPv6 = lo.getInterfaceAddresses().stream()
+                .anyMatch(a -> a.getAddress() instanceof Inet6Address);
+        assumeTrue("localhost needs both IPv4 and IPv6 for this test",
+                 hasIPv4 && hasIPv6);
 
-        var request = mockedStageRequest();
         driver = new CtaNearlineStorage("foo", "bar");
 
         var servicePort = cta.getServicePort();
-        drvConfig.put(CTA_ENDPOINT, "localhost4:" + servicePort + "," + "localhost6:" + servicePort);
+        drvConfig.put(CTA_ENDPOINT, "127.0.0.1:" + servicePort + ",[::1]:" + servicePort);
 
         driver.configure(drvConfig);
         driver.start();
 
         // invoice some to trigger load balancing
-        driver.stage(Set.of(request));
-        driver.stage(Set.of(request));
-        driver.stage(Set.of(request));
-        driver.stage(Set.of(request));
+        driver.stage(Set.of(mockedStageRequest()));
+        driver.stage(Set.of(mockedStageRequest()));
+        driver.stage(Set.of(mockedStageRequest()));
+        driver.stage(Set.of(mockedStageRequest()));
 
         assertTrue("Load balancing is not used", cta.getRequestsEndpoints().size() > 1);
     }
