@@ -268,7 +268,7 @@ public class CtaNearlineStorage implements NearlineStorage {
         };
 
         var ar = ctaRequestFactory.getStoreRequest(r, ctaArchiveId);
-        var response = withStats(Action.CANCEL_FLUSH, () -> cta.withDeadline(getRequestDeadline()).archive(ar));
+        var response = withStats(Action.SUBMIT_FLUSH, () -> cta.withDeadline(getRequestDeadline()).archive(ar));
 
         LOGGER.info("{} : {} : archive id {}, request: {}",
                 r.getId(),
@@ -559,7 +559,7 @@ public class CtaNearlineStorage implements NearlineStorage {
 
     /**
      * Convert a given Throwable into CacheException to ensure serialization.
-     * @param e origianl exception.
+     * @param e original exception.
      * @return corresponding cache exception
      */
     private CacheException asCacheException(Throwable e) {
