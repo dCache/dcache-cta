@@ -612,7 +612,7 @@ public class CtaNearlineStorage implements NearlineStorage {
      * @param action the action type for which the statistics are collected.
      * @param callable the gRPC request to execute.
      * @return the response from the gRPC request.
-     * @throws Exception if the gRPC request fails.
+     * @throws StatusRuntimeException if the gRPC request fails.
      */
     private Response withStats(Action action, Callable<Response> callable) throws StatusRuntimeException {
             try {
