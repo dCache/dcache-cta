@@ -6,9 +6,10 @@ import static org.dcache.nearline.cta.CtaNearlineStorage.CTA_GROUP;
 import static org.dcache.nearline.cta.CtaNearlineStorage.CTA_INSTANCE;
 import static org.dcache.nearline.cta.CtaNearlineStorage.CTA_REQUEST_TIMEOUT;
 import static org.dcache.nearline.cta.CtaNearlineStorage.CTA_TLS;
+import static org.dcache.nearline.cta.CtaNearlineStorage.CTA_TLS_CERT;
+import static org.dcache.nearline.cta.CtaNearlineStorage.CTA_TLS_KEY;
 import static org.dcache.nearline.cta.CtaNearlineStorage.CTA_USER;
 import static org.dcache.nearline.cta.CtaNearlineStorage.IO_PORT;
-import static org.dcache.nearline.cta.TestUtils.generateSelfSignedCert;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeTrue;
@@ -60,27 +61,50 @@ public class CtaNearlineStorageTest {
 
     private CompletableFuture<Void> waitForComplete;
 
-    private static File keyFile;
-    private static File certFile;
+
+    static TestUtils.TestCA testCA;
+
+    private static File caChainFile;
+
+    private static File ctaHostKey;
+    private static File ctaHostCert;
+
+    private static File drvHostKey;
+    private static File drvHostCert;
+
 
     @BeforeClass
     public static void setUpGlobal()
           throws IOException, GeneralSecurityException, OperatorCreationException {
-        keyFile = File.createTempFile("hostkey-", ".pem");
-        certFile = File.createTempFile("hostcert-", ".pem");
-        generateSelfSignedCert(certFile, keyFile);
+
+        testCA = new TestUtils.TestCA();
+
+        caChainFile = File.createTempFile("cachain-", ".pem");
+
+        ctaHostKey = File.createTempFile("hostkey-", ".pem");
+        ctaHostCert = File.createTempFile("hostcert-", ".pem");
+
+        drvHostCert = File.createTempFile("drvcert-", ".pem");
+        drvHostKey = File.createTempFile("drvkey-", ".pem");
+
+        testCA.generateCAChain(caChainFile);
+        testCA.generateServerCert(ctaHostCert, ctaHostKey);
+        testCA.generateClientCert(drvHostCert, drvHostKey, "dCache Nearline Storage Driver");
     }
 
     @AfterClass
-    public static void tierDownGlobal() {
-        keyFile.delete();
-        certFile.delete();
+    public static void tearDownGlobal() {
+        ctaHostKey.delete();
+        ctaHostCert.delete();
+        drvHostKey.delete();
+        drvHostCert.delete();
+        caChainFile.delete();
     }
 
     @Before
     public void setUp() throws Exception {
 
-        cta = new DummyCta(certFile, keyFile);
+        cta = new DummyCta(ctaHostCert, ctaHostKey, caChainFile);
         cta.start();
 
         // make mutable config
@@ -91,15 +115,17 @@ public class CtaNearlineStorageTest {
                     CTA_INSTANCE, "foobar",
                     CTA_ENDPOINT, cta.getConnectString(),
                     IO_PORT, "9991",
-                    CTA_TLS, "true",
-                    CTA_CA, certFile.getAbsolutePath(),
+                    CTA_TLS, "mtls",
+                    CTA_CA, caChainFile.getAbsolutePath(),
+                    CTA_TLS_CERT, drvHostCert.getAbsolutePath(),
+                    CTA_TLS_KEY, drvHostKey.getAbsolutePath(),
                     CTA_REQUEST_TIMEOUT, "3"
               )
         );
     }
 
     @After
-    public void tierDown() {
+    public void tearDown() {
         try {
             cta.shutdown();
         } catch (InterruptedException e) {
@@ -512,7 +538,7 @@ public class CtaNearlineStorageTest {
     }
 
     @Test
-    public void testCencelOfPendingRequest() {
+    public void testCancelOfPendingRequest() {
 
         var request = mockedStageRequest();
         driver = new CtaNearlineStorage("foo", "bar");
@@ -526,7 +552,7 @@ public class CtaNearlineStorageTest {
     }
 
     @Test
-    public void testCencelByRandomUUID() {
+    public void testCancelByRandomUUID() {
 
         var request = mockedStageRequest();
         driver = new CtaNearlineStorage("foo", "bar");
@@ -605,7 +631,7 @@ public class CtaNearlineStorageTest {
 
         var request = mockedFlushRequest();
         when(request.activate()).thenReturn(
-              Futures.immediateFailedFuture(new IOException("Failed to active request")));
+              Futures.immediateFailedFuture(new IOException("Failed to activate request")));
 
         driver = new CtaNearlineStorage("foo", "bar");
         driver.configure(drvConfig);
@@ -620,7 +646,7 @@ public class CtaNearlineStorageTest {
 
         var request = mockedStageRequest();
         when(request.activate()).thenReturn(
-              Futures.immediateFailedFuture(new IOException("Failed to active request")));
+              Futures.immediateFailedFuture(new IOException("Failed to activate request")));
 
         driver = new CtaNearlineStorage("foo", "bar");
         driver.configure(drvConfig);

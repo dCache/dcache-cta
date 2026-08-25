@@ -38,13 +38,14 @@ public class DummyCta {
 
     private Set<String> requestsEndpoints = Collections.synchronizedSet(new HashSet<>());
 
-    public DummyCta(File cert, File key) throws Exception {
+    public DummyCta(File cert, File key, File caCert) throws Exception {
 
         ctaSvc = spy(new CtaSvc());
 
         server = NettyServerBuilder.forPort(0)
               .sslContext(GrpcSslContexts.forServer(cert, key)
-                    .clientAuth(ClientAuth.NONE)
+                    .trustManager(caCert)
+                    .clientAuth(ClientAuth.REQUIRE)
                     .protocols("TLSv1.3", "TLSv1.2")
                     .build()
               )

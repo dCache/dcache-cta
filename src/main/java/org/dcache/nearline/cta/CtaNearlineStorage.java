@@ -63,6 +63,8 @@ public class CtaNearlineStorage implements NearlineStorage {
     public static final String CTA_USER = "cta-user";
     public static final String CTA_GROUP = "cta-group";
     public static final String CTA_TLS = "cta-use-tls";
+    public static final String CTA_TLS_CERT = "cta-tls-cert";
+    public static final String CTA_TLS_KEY = "cta-tls-key";
     public static final String CTA_CA = "cta-ca-chain";
     public static final String IO_ENDPOINT = "io-endpoint";
     public static final String IO_PORT = "io-port";
@@ -132,6 +134,17 @@ public class CtaNearlineStorage implements NearlineStorage {
      * Should TLS be used for gRPC requests
      */
     private boolean useTls;
+
+
+    /**
+     * Path to TLS certificate file.
+     */
+    private File tlsCert;
+
+    /**
+     * Path to TLS key file.
+     */
+    private File tlsKey;
 
     /**
      * CTA frontend request timeout.
@@ -472,12 +485,33 @@ public class CtaNearlineStorage implements NearlineStorage {
             ioSocketAddress = new InetSocketAddress(localPort);
         }
 
-        useTls = Boolean.parseBoolean(properties.getOrDefault(CTA_TLS, "false"));
-        if (useTls) {
-            var caPath = properties.get(CTA_CA);
-            if (caPath != null) {
-                caRootChain = new File(caPath);
-            }
+        String tls = properties.getOrDefault(CTA_TLS, "none");
+        switch (tls.toLowerCase()) {
+            case "mtls":
+                String certPath = properties.get(CTA_TLS_CERT);
+                String certKeyPath = properties.get(CTA_TLS_KEY);
+
+                if (certPath == null || certKeyPath == null) {
+                    throw new IllegalArgumentException("mTLS requires both 'cta-tls-cert' and 'cta-tls-key' to be set");
+                }
+
+                tlsCert = new File(certPath);
+                tlsKey = new File(certKeyPath);
+                // fall through to enable TLS
+            case "true":
+            case "tls":
+                useTls = true;
+                String caPath = properties.get(CTA_CA);
+                if (caPath != null) {
+                    caRootChain = new File(caPath);
+                }
+                break;
+            case "false":
+            case "none":
+                useTls = false;
+                break;
+            default:
+                throw new IllegalArgumentException("Invalid value for CTA_TLS: " + tls);
         }
 
         if (timeoutString != null) {
@@ -503,6 +537,15 @@ public class CtaNearlineStorage implements NearlineStorage {
                     throw new IllegalArgumentException("Can't load root-ca chain file", e);
                 }
             }
+
+            if (tlsKey != null && tlsCert != null) {
+                try {
+                    tlsCredBuilder.keyManager(tlsCert, tlsKey);
+                } catch (IOException e) {
+                    throw new IllegalArgumentException("Can't load TLS cert or key file", e);
+                }
+            }
+
             credentials = tlsCredBuilder.build();
         } else {
             credentials = InsecureChannelCredentials.create();
