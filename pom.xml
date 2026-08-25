@@ -230,7 +230,7 @@
                 <artifactId>protobuf-maven-plugin</artifactId>
                 <version>0.6.1</version>
                 <configuration>
-                    <protocArtifact>com.google.protobuf:protoc:3.10.0:exe:${os.detected.classifier}
+                    <protocArtifact>com.google.protobuf:protoc:3.25.6:exe:${os.detected.classifier}
                     </protocArtifact>
                     <pluginId>grpc-java</pluginId>
                     <pluginArtifact>
